@@ -30,7 +30,7 @@ acs_data = acs_response.json() if acs_response.status_code == 200 else None
 dec_data = dec_response.json() if dec_response.status_code == 200 else None
 
 # === Output ===
-print("\nCensus Tract XXX; New York County; New York")
+print("\nCensus Tract XXX; New York County; New York") # Replace XXX with your tract code
 
 total_pop = 9999 # Replace this with the population of the tract
 
