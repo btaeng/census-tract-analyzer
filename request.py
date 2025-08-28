@@ -1,13 +1,15 @@
-import requests
+from dotenv import load_dotenv
+load_dotenv()
+import os, requests
 
-API_KEY = 'YOUR_KEY_HERE'
+API_KEY = os.getenv("API_KEY")
 
 # === ACS 2023 Subject Table ===
 acs_url = 'https://api.census.gov/data/2023/acs/acs5/subject'
 acs_params = {
     'get': 'NAME,S0101_C02_002E,S0101_C02_003E,S0101_C02_004E,S0101_C02_005E,S0101_C02_006E,S0101_C02_007E,S0101_C02_008E,S0101_C02_009E,S0101_C02_010E,S0101_C02_011E,S0101_C02_012E,S0101_C02_013E,S0101_C02_014E,S0101_C02_015E,S0101_C02_016E,S0101_C02_017E,S0101_C02_018E,S0101_C02_019E,S1902_C03_001E,S1902_C03_012E,S1902_C03_019E',
-    'for': 'tract:YOUR_TRACT_HERE',
-    'in': 'state:YOUR_STATE_HERE county:YOUR_COUNTY_HERE',
+    'for': 'tract:TRACT_CODE_HERE',
+    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
     'key': API_KEY
 }
 
@@ -15,24 +17,38 @@ dec_url = 'https://api.census.gov/data/2020/dec/ddhca'
 dec_params = {
     'get': 'group(T01001)',
     'POPGROUP': '*',
-    'for': 'tract:YOUR_TRACT_HERE',
-    'in': 'state:YOUR_STATE_HERE county:YOUR_COUNTY_HERE',
+    'for': 'tract:TRACT_CODE_HERE',
+    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
+    'key': API_KEY
+}
+
+p1_url = 'https://api.census.gov/data/2020/dec/dhc'
+p1_params = {
+    'get': 'P1_001N',
+    'for': 'tract:TRACT_CODE_HERE',
+    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
     'key': API_KEY
 }
 
 # === API Calls ===
-# run1 = Run(request, data), run.results , list method
 acs_response = requests.get(acs_url, params=acs_params)
-# run2 = ... 
 dec_response = requests.get(dec_url, params=dec_params)
+p1_response = requests.get(p1_url, params=p1_params)
 
 acs_data = acs_response.json() if acs_response.status_code == 200 else None
 dec_data = dec_response.json() if dec_response.status_code == 200 else None
+p1_data = p1_response.json() if p1_response.status_code == 200 else None
 
 # === Output ===
-print("\nCensus Tract XXX; New York County; New York") # Replace XXX with your tract code
+total_pop = 0
 
-total_pop = 9999 # Replace this with the population of the tract
+if p1_data:
+    headers = p1_data[0]
+    values = p1_data[1]
+    idx = headers.index("P1_001N")
+    total_pop = int(values[idx])
+else:
+    total_pop = 0
 
 print(f"\nTotal Population: {total_pop}")
 
@@ -122,7 +138,7 @@ if acs_data and dec_data:
         alone_count = alone_map.get(label, None)
         percent_total = (combo_count / total_pop) * 100
 
-        if (combo_count >= (total_pop * 0.05)):
+        if (combo_count >= 0):
             if alone_count is not None and alone_count > 0:
                 percent_alone = (alone_count / combo_count) * 100
                 print(f"{label}: {percent_total:.2f}% ({percent_alone:.2f}% alone)")
