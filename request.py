@@ -3,13 +3,16 @@ load_dotenv()
 import os, requests
 
 API_KEY = os.getenv("API_KEY")
+STATE = 'state:STATE_CODE_HERE'
+COUNTY = 'county:COUNTY_CODE_HERE'
+TRACT = 'tract:TRACT_CODE_HERE'
 
 # === ACS 2023 Subject Table ===
 acs_url = 'https://api.census.gov/data/2023/acs/acs5/subject'
 acs_params = {
     'get': 'NAME,S0101_C02_002E,S0101_C02_003E,S0101_C02_004E,S0101_C02_005E,S0101_C02_006E,S0101_C02_007E,S0101_C02_008E,S0101_C02_009E,S0101_C02_010E,S0101_C02_011E,S0101_C02_012E,S0101_C02_013E,S0101_C02_014E,S0101_C02_015E,S0101_C02_016E,S0101_C02_017E,S0101_C02_018E,S0101_C02_019E,S1902_C03_001E,S1902_C03_012E,S1902_C03_019E',
-    'for': 'tract:TRACT_CODE_HERE',
-    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
+    'for': TRACT,
+    'in': STATE + ' ' + COUNTY,
     'key': API_KEY
 }
 
@@ -17,16 +20,16 @@ dec_url = 'https://api.census.gov/data/2020/dec/ddhca'
 dec_params = {
     'get': 'group(T01001)',
     'POPGROUP': '*',
-    'for': 'tract:TRACT_CODE_HERE',
-    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
+    'for': TRACT,
+    'in': STATE + ' ' + COUNTY,
     'key': API_KEY
 }
 
 p1_url = 'https://api.census.gov/data/2020/dec/dhc'
 p1_params = {
     'get': 'P1_001N',
-    'for': 'tract:TRACT_CODE_HERE',
-    'in': 'state:STATE_CODE_HERE county:COUNTY_CODE_HERE',
+    'for': TRACT,
+    'in': STATE + ' ' + COUNTY,
     'key': API_KEY
 }
 
