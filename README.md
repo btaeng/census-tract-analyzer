@@ -1,4 +1,4 @@
-# Census Tract Viewer
+# Census Tract Analyzer
 
 An interactive web app that uses the U.S. Census API to display demographic and economic data for individual census tracts.
 The map highlights the chosen tract and shows tables for **age distribution, income statistics, and ethnicity**.
@@ -9,7 +9,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
 * Pulls data from the U.S. Census **Decennial** and **ACS** APIs
 * Age and ethnicity displayed as sortable tables
 * Income statistics (household, family, per capita) displayed clearly
-* Input form to enter **state, county, and tract codes** instead of editing the URL manually
+* Input form to enter **state, county, and tract codes**
 
 ---
 
@@ -55,9 +55,11 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
    ```
 
 4. **Get a Census API Key**
+
    Request one free from: [https://api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html)
 
 5. **Configure environment variables**
+
    Copy the example file:
 
    ```bash
@@ -79,6 +81,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
    By default this starts a server at [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 7. **Open the web app**
+
    In your browser, go to:
 
    ```
@@ -105,7 +108,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
 
 ## Security
 
-* Your `.env` file (with your API key) should **never** be committed to GitHub.
+* **DO NOT SHOW ANYONE YOUR API KEY.** Your `.env` file (with your API key) should **never** be posted online.
 * The repo includes `.env.example` for reference.
 * Add `.env` to `.gitignore` to keep your key private.
 
