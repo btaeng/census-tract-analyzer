@@ -27,7 +27,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/census-tract-viewer.git
+   git clone https://github.com/btaeng/census-tract-analyzer.git
    cd census-tract-viewer
    ```
 
