@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Census Tract Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <link rel="stylesheet" href="./style.css"/>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="sidebar">
+      <h2 id="title">Census Tract</h2>
+      <div id="controls">
+        <form id="tractForm">
+          <label>State FIPS: <input type="text" id="stateInput" required></label>
+          <label>County FIPS: <input type="text" id="countyInput" required></label>
+          <label>Tract Code: <input type="text" id="tractInput" required></label>
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+      <div id="stats"></div>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

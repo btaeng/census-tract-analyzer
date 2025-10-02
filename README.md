@@ -1,15 +1,116 @@
-This is a Python script that requests age, income, and ethnic demographic statistics of any census tract from the US Census API.
+# Census Tract Viewer
 
-Certain parts are hardcoded (tract/county/state codes).
+An interactive web app that uses the U.S. Census API to display demographic and economic data for individual census tracts.
+The map highlights the chosen tract and shows tables for **age distribution, income statistics, and ethnicity**.
 
-This project uses data from the U.S. Census Bureau's 2020 Decennial Census and 2023 American Community Survey (ACS) via the public Census API.
+## Features
 
-The Census Bureau is not responsible for the analyses or interpretations presented here.
+* Leaflet map highlighting the selected tract
+* Pulls data from the U.S. Census **Decennial** and **ACS** APIs
+* Age and ethnicity displayed as sortable tables
+* Income statistics (household, family, per capita) displayed clearly
+* Input form to enter **state, county, and tract codes** instead of editing the URL manually
 
-### Instructions
+---
 
-1. You must have a valid Census API key to request data. Obtain a key [here](https://api.census.gov/data/key_signup.html), then paste it into `YOUR_KEY_HERE` in your `.env` file. An example `.env` file is provided in `.env.example`, remove `.example` from the file name to use.
+## Requirements
 
-2. In the `STATE`, `COUNTY`, and `TRACT` macros, replace `STATE_CODE_HERE`, `COUNTY_CODE_HERE`, and `TRACT_CODE_HERE` with their respective codes. If the geocode is 1400000US36061000700, the state code is "36", the county code is "061", and the tract code is "000700". These can be found in the URL when selecting a tract in the US Census Bureau's advanced search [here](https://data.census.gov/advanced), or by inputting an address into the Census Geocoder [here](https://geocoding.geo.census.gov/geocoder/geographies/address?form).
+* Python 3.9+
+* [Flask](https://flask.palletsprojects.com/en/stable/)
+* [python-dotenv](https://saurabh-kumar.com/python-dotenv/)
+* [requests](https://docs.python-requests.org/en/latest/)
 
-3. Run the script, and the demographic data should appear in your console.
+---
+
+## Installation & Setup
+
+1. **Clone the repository**:
+
+   ```bash
+   git clone https://github.com/yourusername/census-tract-viewer.git
+   cd census-tract-viewer
+   ```
+
+2. **Set up a virtual environment** (recommended):
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate   # on macOS/Linux
+   venv\Scripts\activate      # on Windows
+   ```
+
+3. **Install dependencies**:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   If you don’t have a `requirements.txt` yet, here’s what to include:
+
+   ```
+   Flask
+   flask-cors
+   requests
+   python-dotenv
+   ```
+
+4. **Get a Census API Key**
+   Request one free from: [https://api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html)
+
+5. **Configure environment variables**
+   Copy the example file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Open `.env` and add your key:
+
+   ```
+   CENSUS_API_KEY=your_api_key_here
+   ```
+
+6. **Run the Flask app**:
+
+   ```bash
+   flask run
+   ```
+
+   By default this starts a server at [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+7. **Open the web app**
+   In your browser, go to:
+
+   ```
+   http://127.0.0.1:5000
+   ```
+
+---
+
+## Usage
+
+* Enter the **state FIPS**, **county FIPS**, and **tract code** in the sidebar form.
+* Click **Submit** to load the tract.
+* The map will highlight the tract and the sidebar will show demographic and economic stats.
+
+---
+
+## Default Inputs
+
+* **State (CA)**: `06`
+* **County (Alameda)**: `001`
+* **Tract**: `450200`
+
+---
+
+## Security
+
+* Your `.env` file (with your API key) should **never** be committed to GitHub.
+* The repo includes `.env.example` for reference.
+* Add `.env` to `.gitignore` to keep your key private.
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
