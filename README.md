@@ -75,7 +75,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
 6. **Run the Flask app**:
 
    ```bash
-   flask run
+   python app.py
    ```
 
    By default this starts a server at [http://127.0.0.1:5000](http://127.0.0.1:5000).
@@ -85,7 +85,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
    In your browser, go to:
 
    ```
-   http://127.0.0.1:5000
+   http://127.0.0.1:5000/api/tract
    ```
 
 ---
