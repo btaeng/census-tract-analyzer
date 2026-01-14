@@ -78,6 +78,13 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
    python app.py
    ```
 
+   **If you are using Docker, run these two commands instead:**
+
+   ```bash
+   docker build -t census-tract-analyzer .
+   docker run -p 5000:5000 --env-file .env census-tract-analyzer
+   ```
+
    By default this starts a server at [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 7. **Open the web app**
