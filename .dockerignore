@@ -1,0 +1,6 @@
+venv
+__pycache__
+zips
+.git
+.env
+request-private-do-not-commit.py

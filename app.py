@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from census_client import get_total_pop, get_acs_age_income, get_ethnicity
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -30,4 +31,5 @@ def tract():
         return jsonify({"error": str(e)}), 502
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
+    app.run(host=host, port=5000, debug=True)
