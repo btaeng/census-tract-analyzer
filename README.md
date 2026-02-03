@@ -92,7 +92,7 @@ The map highlights the chosen tract and shows tables for **age distribution, inc
    In your browser, go to:
 
    ```
-   http://127.0.0.1:5000/api/tract
+   http://127.0.0.1:5000/static/index.html
    ```
 
 ---
