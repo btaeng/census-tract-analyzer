@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 CENSUS_KEY = os.getenv("CENSUS_API_KEY") or ""
 
-ACS_URL = "https://api.census.gov/data/2023/acs/acs5/subject"
+ACS_URL = "https://api.census.gov/data/2020/acs/acs5/subject"
 DEC_URL = "https://api.census.gov/data/2020/dec/ddhca"
 PL_URL  = "https://api.census.gov/data/2020/dec/pl"
 
