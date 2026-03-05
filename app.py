@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import requests
 from census_client import get_total_pop, get_acs_age_income, get_ethnicity
 import os
 
@@ -27,6 +28,8 @@ def tract():
             "income": acs["income"],
             "ethnicity": eth
         })
+    except requests.exceptions.HTTPError as err:
+        return jsonify({"error": f"Census API error: {err.response.status_code}. Check if FIPS exists in 2020 data."}), err.response.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
