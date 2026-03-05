@@ -13,7 +13,8 @@ def get_total_pop(state, county, tract=None):
         params["for"] = f"tract:{tract}"
     else:
         params["for"] = f"county:{county}"
-    r = requests.get(PL_URL, params=params); r.raise_for_status()
+    r = requests.get(PL_URL, params=params, timeout=10)
+    r.raise_for_status()
     h, v = r.json()[0], r.json()[1]
     return int(v[h.index("P1_001N")])
 
@@ -42,7 +43,8 @@ def get_acs_age_income(state, county, tract):
         "in": f"state:{state} county:{county}",
         "key": CENSUS_KEY
     }
-    r = requests.get(ACS_URL, params=params); r.raise_for_status()
+    r = requests.get(ACS_URL, params=params, timeout=10)
+    r.raise_for_status()
     data = r.json()
     headers, values = data[0], data[1]
     idx = {h:i for i,h in enumerate(headers)}
@@ -67,7 +69,8 @@ def get_ethnicity(state, county, tract, total_pop):
         "in": f"state:{state} county:{county}",
         "key": CENSUS_KEY
     }
-    r = requests.get(DEC_URL, params=params); r.raise_for_status()
+    r = requests.get(DEC_URL, params=params, timeout=10)
+    r.raise_for_status()
     data = r.json()
     headers = data[0]
     results = []
