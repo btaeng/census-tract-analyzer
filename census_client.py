@@ -128,7 +128,7 @@ AGGREGATE_LABELS = [
     "Other Middle Eastern or North African",
     "Pennsylvania German",
     "Other White",
-    "Other White, not specified",
+    "Other White, specified",
     "African American",
     "Other Sub-Saharan African",
     "Sub-Saharan African",
@@ -192,7 +192,12 @@ AGGREGATE_LABELS = [
     "Easter Islander",
     "Polynesian",
     "Other Polynesian",
-    "Rotuman"
+    "Rotuman",
+    "Other Some Other Race, specified"
+    "Latin American",
+    "Other Black or African American, specified",
+    "Caribbean Indian (all tribes)",
+    "Mexican Indian (all tribes)"
 ]
 
 def process_detailed_data(data, geo_idx_key):
@@ -203,7 +208,7 @@ def process_detailed_data(data, geo_idx_key):
 
     for row in data[1:]:
         geo_id = row[idx[geo_idx_key]]
-        label = row[idx["POPGROUP_LABEL"]]
+        label = row[idx["POPGROUP_LABEL"]].strip() 
         geo_name = row[idx["NAME"]] 
         pop = int(row[idx["T01001_001N"]]) if row[idx["T01001_001N"]] else 0
         
@@ -213,7 +218,7 @@ def process_detailed_data(data, geo_idx_key):
         is_combo = " alone or in any combination" in label
         is_alone = label.endswith(" alone")
 
-        clean_label = label.replace(" alone or in any combination", "").replace(" alone", "")
+        clean_label = label.replace(" alone or in any combination", "").replace(" alone", "").strip()
         
         if clean_label in AGGREGATE_LABELS or "Total" in label:
             continue

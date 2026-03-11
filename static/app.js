@@ -302,6 +302,8 @@ const flagMap = {
   "Tuvaluan": "tv",
   "Wallisian and Futunan": "wf",
   "American Indian": "/static/img/ensigns/indigenous.png",
+  "American Indian and Alaska Native, not specified": "/static/img/ensigns/indigenous.png",
+  "American Indian, not specified": "/static/img/ensigns/indigenous.png",
   "Alaska Native": "us-ak"
 }
 
