@@ -457,7 +457,7 @@ async function loadTractLevel(stateFips, coFips) {
       style: (f) => {
         const tractData = mceData[f.properties.TRACTCE] || "Unknown";
         const winnerLabel = tractData.mce || "Unknown";
-        return { fillColor: getDynamicColor(winnerLabel), fillOpacity: 0.6, color: "white", weight: 0.2 };
+        return { fillColor: getDynamicColor(winnerLabel), fillOpacity: 0.6, color: "white", weight: 0.5 };
       },
       onEachFeature: (f, layer) => {
         const tFips = f.properties.TRACTCE;
