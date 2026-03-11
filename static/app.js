@@ -49,9 +49,14 @@ map.on("zoomend", handleVisibility);
 function getDynamicColor(label) {
   if (colorCache[label]) return colorCache[label];
 
-  const h = Math.floor(Math.random() * 360);
-  const color = `hsl(${h}, 70%, 50%)`;
-  
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = label.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const hue = Math.abs(hash * 137.508) % 360; 
+
+  const color = `hsl(${hue}, 75%, 45%)`;
   colorCache[label] = color;
   return color;
 }
@@ -515,7 +520,8 @@ function showDetails(geoId, type) {
 
     panel.classList.remove("hidden");
     content.innerHTML = `
-        <h3>${data.mce} (Dominant)</h3>
+        <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
+        <p style="margin-top:-10px; color:#666;">Dominant: ${data.mce}</p>
         <table>
             <thead>
                 <tr><th>Group</th><th>Pop</th><th>% Alone</th></tr>

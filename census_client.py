@@ -120,6 +120,7 @@ def get_ethnicity(state, county, tract, total_pop):
 AGGREGATE_LABELS = [
     "European",
     "Other European",
+    "Other European, not specified",
     "Scandinavian",
     "Scots-Irish",
     "Slavic",
@@ -153,6 +154,8 @@ AGGREGATE_LABELS = [
     "Hispanic",
     "All other Hispanic, Latino, or Spanish",
     "All other Hispanic, Latino, or Spanish responses",
+    "All other Hispanic or Latino, not specified",
+    "Multiracial/Multiethnic responses",
     "East Asian",
     "Other East Asian",
     "Mien",
@@ -164,6 +167,7 @@ AGGREGATE_LABELS = [
     "Central Asian",
     "Other Central Asian",
     "Other Asian",
+    "Other Asian, not specified",
     "Buryat",
     "Kalmyk",
     "Kuki",
@@ -173,6 +177,7 @@ AGGREGATE_LABELS = [
     "Pashtun",
     "Tai Dam",
     "Other Some Other Race",
+    "Other Some Other Race, not specified",
     "Other Native Hawaiian and Other Pacific Islander",
     "Melanesian",
     "Other Melanesian",
@@ -185,6 +190,7 @@ AGGREGATE_LABELS = [
     "Saipanese",
     "Yapese",
     "Easter Islander",
+    "Polynesian",
     "Other Polynesian",
     "Rotuman"
 ]
@@ -198,10 +204,11 @@ def process_detailed_data(data, geo_idx_key):
     for row in data[1:]:
         geo_id = row[idx[geo_idx_key]]
         label = row[idx["POPGROUP_LABEL"]]
+        geo_name = row[idx["NAME"]] 
         pop = int(row[idx["T01001_001N"]]) if row[idx["T01001_001N"]] else 0
         
         if geo_id not in raw_storage:
-            raw_storage[geo_id] = {"groups": {}}
+            raw_storage[geo_id] = {"groups": {}, "name": geo_name}
 
         is_combo = " alone or in any combination" in label
         is_alone = label.endswith(" alone")
@@ -241,6 +248,7 @@ def process_detailed_data(data, geo_idx_key):
         processed_list.sort(key=lambda x: x['pop'], reverse=True)
         
         final_output[geo_id] = {
+            "name": data["name"],
             "mce": processed_list[0]['label'] if processed_list else "Unknown",
             "details": processed_list
         }
