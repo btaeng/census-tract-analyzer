@@ -1,17 +1,60 @@
-const params = new URLSearchParams(window.location.search);
-let state = params.get("state")  || "06";   // California
-let county = params.get("county")|| "001";  // Alameda
-let tract = params.get("tract")  || "450200";
+const map = L.map("map").setView([37.8, -96], 4);
 
-const countyGEOID = state + county;
-const tractGEOID  = state + county + tract;
-console.log("Looking for GEOID:", tractGEOID);
-
-const map = L.map("map");
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 18,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
+
+const viewStack = ['national']; 
+const dataCache = {
+  states: null,
+  counties: {},
+  tracts: {}
+};
+
+const stateLayer = L.layerGroup().addTo(map);
+const stateFlagLayer = L.layerGroup().addTo(map);
+const countyLayer = L.layerGroup().addTo(map);
+const countyFlagLayer = L.layerGroup().addTo(map);
+const tractLayer = L.layerGroup().addTo(map);
+const tractFlagLayer = L.layerGroup().addTo(map);
+
+const colorCache = {};
+
+function handleVisibility() {
+  const zoom = map.getZoom();
+  const level = viewStack.length;
+
+  const FLAG_THRESHOLD = 5;
+  const SHAPE_THRESHOLD = 2;
+
+  if (zoom < FLAG_THRESHOLD) {
+    [stateFlagLayer, countyFlagLayer, tractFlagLayer].forEach(l => map.removeLayer(l));
+  } else {
+    if (level === 1) { map.addLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); map.removeLayer(tractFlagLayer); }
+    if (level === 2) { map.addLayer(countyFlagLayer); map.removeLayer(stateFlagLayer); map.removeLayer(tractFlagLayer); }
+    if (level === 3) { map.addLayer(tractFlagLayer); map.removeLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); }
+  }
+
+  if (zoom < SHAPE_THRESHOLD) {
+    [stateLayer, countyLayer, tractLayer].forEach(l => map.removeLayer(l));
+  } else {
+    if (level === 1) { map.addLayer(stateLayer); map.removeLayer(countyLayer); map.removeLayer(tractLayer); }
+    if (level === 2) { map.addLayer(countyLayer); map.removeLayer(stateLayer); map.removeLayer(tractLayer); }
+    if (level === 3) { map.addLayer(tractLayer); map.removeLayer(stateLayer); map.removeLayer(countyLayer); }
+  }
+}
+
+map.on("zoomend", handleVisibility);
+
+function getDynamicColor(label) {
+  if (colorCache[label]) return colorCache[label];
+
+  const h = Math.floor(Math.random() * 360);
+  const color = `hsl(${h}, 70%, 50%)`;
+  
+  colorCache[label] = color;
+  return color;
+}
 
 const flagMap = {
   "Albanian": "al",
@@ -109,7 +152,7 @@ const flagMap = {
   "French Canadian": "/static/img/ensigns/quebec.png",
   "Greenlandic": "gl",
   "New Zealander": "nz",
-  "Other White": "us",
+  "Other White, not specified": "us",
   "Angolan": "ao",
   "Beninese": "bj",
   "Bissau-Guinean": "gw",
@@ -136,8 +179,8 @@ const flagMap = {
   "Motswana": "bw",
   "Mozambican": "mz",
   "Namibian": "na",
-  "Nigerian": "ng",
-  "Nigerien": "ne",
+  "Nigerian (Nigeria)": "ng",
+  "Nigerien (Niger)": "ne",
   "Rwandan": "rw",
   "Senegalese": "sn",
   "Sierra Leonean": "sl",
@@ -166,7 +209,7 @@ const flagMap = {
   "Trinidadian and Tobagonian": "tt",
   "U.S. Virgin Islander": "vi",
   "Vincentian": "vc",
-  "Other Black": "/static/img/ensigns/pan_african.png",
+  "Other Black or African American, not specified": "/static/img/ensigns/pan_african.png",
   "Mexican": "mx",
   "Costa Rican": "cr",
   "Guatemalan": "gt",
@@ -253,114 +296,342 @@ const flagMap = {
   "Tongan": "to",
   "Tuvaluan": "tv",
   "Wallisian and Futunan": "wf",
+  "American Indian": "/static/img/ensigns/indigenous.png",
+  "Alaska Native": "us-ak"
 }
 
 function getFlagUrl(label) {
-  const mapping = flagMap[label];
-  if (!mapping) return "/static/img/ensigns/unknown.png";
-  if (mapping.includes("/") || mapping.includes("http")) {
-    return mapping;
-  }
+  const mapping = flagMap[label] || "us";
+  if (mapping.includes("/")) return mapping;
   return `https://flagcdn.com/w80/${mapping}.png`;
 }
 
-function renderStats(data) {
-  document.getElementById("title").textContent = `${data.name}`;
-  const stats = document.getElementById("stats");
-  const ageTable = `
-    <table class="sortable">
-      <thead><tr><th>Age Group</th><th>Percent</th></tr></thead>
-      <tbody>
-        ${data.age.map(a => `
-          <tr>
-            <td>${a.label}</td>
-            <td>${a.percent ?? "N/A"}%</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-  const ethTable = `
-    <table class="sortable">
-      <thead><tr><th>Group</th><th>Population</th><th>% of Total</th><th>% Alone (within group)</th></tr></thead>
-      <tbody>
-        ${data.ethnicity.map(e => `
-          <tr>
-            <td>${e.label}</td>
-            <td>${e.population.toLocaleString()}</td>
-            <td>${e.percent_of_total}%</td>
-            <td>${e.percent_alone_within_group ?? "—"}%</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-
-
-  stats.innerHTML = `
-    <p><strong>Total population:</strong> ${data.total_pop.toLocaleString()}</p>
-    <h3>Age</h3>
-    ${ageTable}
-    <h3>Income</h3>
-    <ul>
-      <li>Mean household income: $${Math.round(data.income.mean_household_income || 0).toLocaleString()}</li>
-      <li>Mean family income: $${Math.round(data.income.mean_family_income || 0).toLocaleString()}</li>
-      <li>Per capita income: $${Math.round(data.income.mean_per_capita_income || 0).toLocaleString()}</li>
-    </ul>
-    <h3>Ethnicity</h3>
-    ${ethTable}
-  `;
+function updateBackButton() {
+  const btn = document.getElementById("backButton");
+  btn.style.display = viewStack.length > 1 ? "block" : "none";
 }
 
-function makeTablesSortable() {
-  document.querySelectorAll("table.sortable th").forEach(th => {
-    th.addEventListener("click", () => {
-      const table = th.closest("table");
-      const tbody = table.querySelector("tbody");
-      const index = Array.from(th.parentNode.children).indexOf(th);
-      const rows = Array.from(tbody.querySelectorAll("tr"));
-      const asc = !th.classList.contains("asc");
+async function goBack() {
+  viewStack.pop();
+  const target = viewStack[viewStack.length - 1];
 
-      rows.sort((a, b) => {
-        let av = a.children[index].textContent.replace("%","").replace("—","");
-        let bv = b.children[index].textContent.replace("%","").replace("—","");
-        let na = parseFloat(av); let nb = parseFloat(bv);
-        if (!isNaN(na) && !isNaN(nb)) { return asc ? na - nb : nb - na; }
-        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
-      });
+  [stateLayer, stateFlagLayer, countyLayer, countyFlagLayer, tractLayer, tractFlagLayer].forEach(l => l.clearLayers());
 
-      rows.forEach(r => tbody.appendChild(r));
-      table.querySelectorAll("th").forEach(th2 => th2.classList.remove("asc","desc"));
-      th.classList.add(asc ? "asc" : "desc");
-    });
-  });
-}
-
-async function init(newState, newCounty, newTract) {
-  if (newState) { state = newState; county = newCounty; tract = newTract; }
-  const countyGEOID = state + county;
-  const tractGEOID  = state + county + tract;
-  console.log("Looking for GEOID:", tractGEOID);
-  const mapResp = await fetch(`/static/data/counties/${countyGEOID}.geojson`);
-  const geojson = await mapResp.json();
-  const tractLayer = L.geoJSON(geojson, {
-    filter: f => f.properties.GEOID === tractGEOID,
-    style: { weight: 2, color: "blue", fillOpacity: 0.3 }
-  }).addTo(map);
-  if (tractLayer.getLayers().length > 0) {
-    map.fitBounds(tractLayer.getBounds(), { padding: [20,20] });
+  if (target === 'national') {
+    initStateMap();
+    map.setView([37.8, -96], 4);
+  } 
+  else if (target.length === 2) {
+    loadCountyLevel(target);
+  } 
+  else if (target.length === 5) {
+    const stateFips = target.substring(0, 2);
+    const coFips = target.substring(2, 5);
+    loadTractLevel(stateFips, coFips);
   }
-  const apiResp = await fetch(`/api/tract?state=${state}&county=${county}&tract=${tract}`);
-  const data = await apiResp.json();
-  renderStats(data);
-  makeTablesSortable();
+  
+  updateBackButton();
+  handleVisibility();
+  document.getElementById("infoPanel").classList.add("hidden");
 }
 
-document.getElementById("tractForm").addEventListener("submit", ev => {
-  ev.preventDefault();
-  const s = document.getElementById("stateInput").value.trim();
-  const c = document.getElementById("countyInput").value.trim();
-  const t = document.getElementById("tractInput").value.trim();
-  if (s && c && t) {
-    map.eachLayer(l => { if (l instanceof L.GeoJSON) map.removeLayer(l); });
-    init(s, c, t);
-  }
-});
+document.getElementById("backButton").addEventListener("click", goBack);
 
-init();
+async function getCachedData(url, cacheKey, cacheType) {
+  if (cacheType === 'states' && dataCache.states) return dataCache.states;
+  if (cacheType === 'counties' && dataCache.counties[cacheKey]) return dataCache.counties[cacheKey];
+  if (cacheType === 'tracts' && dataCache.tracts[cacheKey]) return dataCache.tracts[cacheKey];
+
+  const resp = await fetch(url);
+  const data = await resp.json();
+
+  if (cacheType === 'states') dataCache.states = data;
+  if (cacheType === 'counties') dataCache.counties[cacheKey] = data;
+  if (cacheType === 'tracts') dataCache.tracts[cacheKey] = data;
+
+  return data;
+}
+
+async function initStateMap() {
+  try {
+    const geoResp = await fetch("/static/data/us-states.geojson");
+    const statesGeo = await geoResp.json();
+    const mceData = await getCachedData("/api/states-mce", null, 'states');
+
+    L.geoJSON(statesGeo, {
+      style: (feature) => {
+        const stateFips = feature.properties.STATEFP;
+        const stateData = mceData[stateFips]; 
+        const winnerLabel = stateData ? stateData.mce : "White";
+        return {
+          fillColor: getDynamicColor(winnerLabel),
+          fillOpacity: 0.6,
+          color: "white",
+          weight: 1
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const stateFips = feature.properties.STATEFP;
+        const stateData = mceData[stateFips];
+        if (!stateData) return;
+
+        const center = turf.centroid(feature);
+        const [lng, lat] = center.geometry.coordinates;
+
+        const flagIcon = L.divIcon({
+          html: `<img src="${getFlagUrl(stateData.mce)}" class="ensign-flag" title="${feature.properties.NAME}: ${stateData.mce}">`,
+          className: 'ensign-container'
+        });
+
+        L.marker([lat, lng], { icon: flagIcon, interactive: false }).addTo(stateFlagLayer);
+        layer.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          viewStack.push(stateFips);
+          updateBackButton();
+          map.fitBounds(e.target.getBounds());
+          loadCountyLevel(stateFips);
+          showDetails(stateFips, 'state');
+        });
+      }
+    }).addTo(stateLayer);
+    handleVisibility();
+  } catch (err) {
+    console.error("Initialization failed:", err);
+  }
+}
+
+async function loadCountyLevel(stateFips) {
+  try {
+    stateLayer.clearLayers();
+    stateFlagLayer.clearLayers();
+    
+    const geoResp = await fetch(`/static/data/counties/${stateFips}.geojson`);
+    const countiesGeo = await geoResp.json();
+    const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
+
+    L.geoJSON(countiesGeo, {
+      style: (feature) => {
+        const countyData = mceData[feature.properties.COUNTYFP];
+        const winnerLabel = countyData ? countyData.mce : "Unknown";
+        return { fillColor: getDynamicColor(winnerLabel), fillOpacity: 0.6, color: "white", weight: 0.5 };
+      },
+      onEachFeature: (feature, layer) => {
+        const coFips = feature.properties.COUNTYFP;
+        const countyData = mceData[coFips];
+        if (!countyData) return;
+
+        const center = turf.centroid(feature);
+        const [lng, lat] = center.geometry.coordinates;
+        const icon = L.divIcon({
+          html: `<img src="${getFlagUrl(countyData.mce)}" class="ensign-flag" style="width:16px;">`,
+          className: 'ensign-container'
+        });
+        L.marker([lat, lng], { icon: icon, interactive: false }).addTo(countyFlagLayer);
+        layer.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          viewStack.push(stateFips + coFips);
+          updateBackButton();
+          map.fitBounds(e.target.getBounds());
+          loadTractLevel(stateFips, coFips);
+          showDetails(coFips, 'county');
+        });
+      }
+    }).addTo(countyLayer);
+    handleVisibility();
+  } catch (err) {
+    console.error("Failed to load counties:", err);
+  }
+}
+
+async function loadTractLevel(stateFips, coFips) {
+  try {
+    countyLayer.clearLayers();
+    countyFlagLayer.clearLayers();
+    
+    const geoid = stateFips + coFips;
+    const geoResp = await fetch(`/static/data/tracts/${geoid}.geojson`);
+    const tractsGeo = await geoResp.json();
+    const mceData = await getCachedData(`/api/tracts-mce?state=${stateFips}&county=${coFips}`, geoid, 'tracts');
+
+    L.geoJSON(tractsGeo, {
+      style: (f) => {
+        const tractData = mceData[f.properties.TRACTCE] || "Unknown";
+        const winnerLabel = tractData.mce || "Unknown";
+        return { fillColor: getDynamicColor(winnerLabel), fillOpacity: 0.6, color: "white", weight: 0.2 };
+      },
+      onEachFeature: (f, layer) => {
+        const tFips = f.properties.TRACTCE;
+        const tractData = mceData[tFips];
+        if (!tractData) return;
+
+        const center = turf.centroid(f);
+        const [lng, lat] = center.geometry.coordinates;
+        L.marker([lat, lng], { 
+            icon: L.divIcon({ html: `<img src="${getFlagUrl(tractData.mce)}" class="ensign-flag" style="width:10px;">`, className: 'ensign-container' }),
+            interactive: false 
+        }).addTo(tractFlagLayer);
+        layer.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          const tractFullID = stateFips + coFips + tFips;
+          if (viewStack.length === 4) {
+            viewStack[3] = tractFullID;
+          } else {
+            viewStack.push(tractFullID);
+          }
+          updateBackButton();
+          map.fitBounds(e.target.getBounds());
+          showDetails(tFips, 'tract');
+        });
+      }
+    }).addTo(tractLayer);
+    handleVisibility();
+  } catch (err) {
+    console.error("Tract load failed", err);
+  }
+}
+
+function showDetails(geoId, type) {
+    const panel = document.getElementById("infoPanel");
+    const content = document.getElementById("statsContent");
+    
+    let data;
+    if (type === 'state') {
+      data = dataCache.states[geoId];
+    }
+    else if (type === 'county') {
+      data = dataCache.counties[viewStack[1]][geoId];
+    }
+    else if (type === 'tract') {
+        const parentKey = viewStack[2]; 
+        if (dataCache.tracts[parentKey]) {
+            data = dataCache.tracts[parentKey][geoId];
+        }
+    }
+
+    if (!data) {
+      console.error(`Data not found for ${type}: ${geoId} in parent ${viewStack[2]}`);
+      return;
+    }
+
+    panel.classList.remove("hidden");
+    content.innerHTML = `
+        <h3>${data.mce} (Dominant)</h3>
+        <table>
+            <thead>
+                <tr><th>Group</th><th>Pop</th><th>% Alone</th></tr>
+            </thead>
+            <tbody>
+                ${data.details.map(e => `
+                    <tr>
+                        <td>${e.label}</td>
+                        <td>${e.pop.toLocaleString()}</td>
+                        <td>${e.percent_alone}%</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+initStateMap();
+
+// function renderStats(data) {
+//   document.getElementById("title").textContent = `${data.name}`;
+//   const stats = document.getElementById("stats");
+//   const ageTable = `
+//     <table class="sortable">
+//       <thead><tr><th>Age Group</th><th>Percent</th></tr></thead>
+//       <tbody>
+//         ${data.age.map(a => `
+//           <tr>
+//             <td>${a.label}</td>
+//             <td>${a.percent ?? "N/A"}%</td>
+//           </tr>`).join("")}
+//       </tbody>
+//     </table>`;
+//   const ethTable = `
+//     <table class="sortable">
+//       <thead><tr><th>Group</th><th>Population</th><th>% of Total</th><th>% Alone (within group)</th></tr></thead>
+//       <tbody>
+//         ${data.ethnicity.map(e => `
+//           <tr>
+//             <td>${e.label}</td>
+//             <td>${e.population.toLocaleString()}</td>
+//             <td>${e.percent_of_total}%</td>
+//             <td>${e.percent_alone_within_group ?? "—"}%</td>
+//           </tr>`).join("")}
+//       </tbody>
+//     </table>`;
+
+
+//   stats.innerHTML = `
+//     <p><strong>Total population:</strong> ${data.total_pop.toLocaleString()}</p>
+//     <h3>Age</h3>
+//     ${ageTable}
+//     <h3>Income</h3>
+//     <ul>
+//       <li>Mean household income: $${Math.round(data.income.mean_household_income || 0).toLocaleString()}</li>
+//       <li>Mean family income: $${Math.round(data.income.mean_family_income || 0).toLocaleString()}</li>
+//       <li>Per capita income: $${Math.round(data.income.mean_per_capita_income || 0).toLocaleString()}</li>
+//     </ul>
+//     <h3>Ethnicity</h3>
+//     ${ethTable}
+//   `;
+// }
+
+// function makeTablesSortable() {
+//   document.querySelectorAll("table.sortable th").forEach(th => {
+//     th.addEventListener("click", () => {
+//       const table = th.closest("table");
+//       const tbody = table.querySelector("tbody");
+//       const index = Array.from(th.parentNode.children).indexOf(th);
+//       const rows = Array.from(tbody.querySelectorAll("tr"));
+//       const asc = !th.classList.contains("asc");
+
+//       rows.sort((a, b) => {
+//         let av = a.children[index].textContent.replace("%","").replace("—","");
+//         let bv = b.children[index].textContent.replace("%","").replace("—","");
+//         let na = parseFloat(av); let nb = parseFloat(bv);
+//         if (!isNaN(na) && !isNaN(nb)) { return asc ? na - nb : nb - na; }
+//         return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+//       });
+
+//       rows.forEach(r => tbody.appendChild(r));
+//       table.querySelectorAll("th").forEach(th2 => th2.classList.remove("asc","desc"));
+//       th.classList.add(asc ? "asc" : "desc");
+//     });
+//   });
+// }
+
+// async function init(newState, newCounty, newTract) {
+//   if (newState) { state = newState; county = newCounty; tract = newTract; }
+//   const countyGEOID = state + county;
+//   const tractGEOID  = state + county + tract;
+//   console.log("Looking for GEOID:", tractGEOID);
+//   const mapResp = await fetch(`/static/data/tracts/${countyGEOID}.geojson`);
+//   const geojson = await mapResp.json();
+//   const tractLayer = L.geoJSON(geojson, {
+//     filter: f => f.properties.GEOID === tractGEOID,
+//     style: { weight: 2, color: "blue", fillOpacity: 0.3 }
+//   }).addTo(map);
+//   if (tractLayer.getLayers().length > 0) {
+//     map.fitBounds(tractLayer.getBounds(), { padding: [20,20] });
+//   }
+//   const apiResp = await fetch(`/api/tract?state=${state}&county=${county}&tract=${tract}`);
+//   const data = await apiResp.json();
+//   renderStats(data);
+//   makeTablesSortable();
+// }
+
+// document.getElementById("tractForm").addEventListener("submit", ev => {
+//   ev.preventDefault();
+//   const s = document.getElementById("stateInput").value.trim();
+//   const c = document.getElementById("countyInput").value.trim();
+//   const t = document.getElementById("tractInput").value.trim();
+//   if (s && c && t) {
+//     map.eachLayer(l => { if (l instanceof L.GeoJSON) map.removeLayer(l); });
+//     init(s, c, t);
+//   }
+// });
+
+// init();

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
-from census_client import get_total_pop, get_acs_age_income, get_ethnicity
+from census_client import get_all_states_ethnicity, get_counties_mce, get_total_pop, get_acs_age_income, get_ethnicity, get_tracts_mce
 import os
 
 app = Flask(__name__)
@@ -30,6 +30,37 @@ def tract():
         })
     except requests.exceptions.HTTPError as err:
         return jsonify({"error": f"Census API error: {err.response.status_code}. Check if FIPS exists in 2020 data."}), err.response.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    
+@app.get("/api/states-mce")
+def states_mce():
+    try:
+        data = get_all_states_ethnicity()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    
+@app.get("/api/counties-mce")
+def counties_mce():
+    state_fips = request.args.get("state")
+    if not state_fips:
+        return jsonify({"error": "Missing state parameter"}), 400
+    try:
+        data = get_counties_mce(state_fips)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+@app.get("/api/tracts-mce")
+def tracts_mce():
+    state = request.args.get("state")
+    county = request.args.get("county")
+    if not state or not county:
+        return jsonify({"error": "Missing state or county parameter"}), 400
+    try:
+        data = get_tracts_mce(state, county)
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 

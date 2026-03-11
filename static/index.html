@@ -8,17 +8,10 @@
   </head>
   <body>
     <div id="map"></div>
-    <div id="sidebar">
-      <h2 id="title">Census Tract</h2>
-      <div id="controls">
-        <form id="tractForm">
-          <label>State FIPS: <input type="text" id="stateInput" required></label>
-          <label>County FIPS: <input type="text" id="countyInput" required></label>
-          <label>Tract Code: <input type="text" id="tractInput" required></label>
-          <button type="submit">Submit</button>
-        </form>
-      </div>
-      <div id="stats"></div>
+    <button id="backButton" style="display: none;">&larr; Back</button>
+    <div id="infoPanel" class="hidden">
+      <button id="closePanel">&times;</button>
+      <div id="statsContent"></div>
     </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>

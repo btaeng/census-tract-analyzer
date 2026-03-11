@@ -116,3 +116,144 @@ def get_ethnicity(state, county, tract, total_pop):
     for e in ethnic:
         e.pop("_pop", None)
     return ethnic
+
+AGGREGATE_LABELS = [
+    "European",
+    "Other European",
+    "Scandinavian",
+    "Scots-Irish",
+    "Slavic",
+    "Middle Eastern or North African",
+    "Other Middle Eastern or North African",
+    "Pennsylvania German",
+    "Other White",
+    "Other White, not specified",
+    "African American",
+    "Other Sub-Saharan African",
+    "Sub-Saharan African",
+    "Caribbean",
+    "Other Caribbean",
+    "West Indian",
+    "Other Black or African American",
+    "Caribbean Hispanic",
+    "Other Caribbean Hispanic",
+    "Central American",
+    "Other Central American",
+    "South American",
+    "Other South American",
+    "Afro Latino(a)",
+    "Garifuna",
+    "Hispanic",
+    "Latino(a)",
+    "Other Hispanic or Latino",
+    "Other Hispanic, Latino, or Spanish",
+    "Spanish",
+    "Spanish American",
+    "Hispanic responses",
+    "Hispanic",
+    "All other Hispanic, Latino, or Spanish",
+    "All other Hispanic, Latino, or Spanish responses",
+    "East Asian",
+    "Other East Asian",
+    "Mien",
+    "Southeast Asian",
+    "Other Southeast Asian",
+    "South Asian",
+    "Other South Asian",
+    "Sindhi",
+    "Central Asian",
+    "Other Central Asian",
+    "Other Asian",
+    "Buryat",
+    "Kalmyk",
+    "Kuki",
+    "Lahu",
+    "Malay",
+    "Mizo",
+    "Pashtun",
+    "Tai Dam",
+    "Other Some Other Race",
+    "Other Native Hawaiian and Other Pacific Islander",
+    "Melanesian",
+    "Other Melanesian",
+    "Other Micronesian",
+    "Carolinian",
+    "Chamorro",
+    "Guamian",
+    "Kosraean",
+    "Pohnpeian",
+    "Saipanese",
+    "Yapese",
+    "Easter Islander",
+    "Other Polynesian",
+    "Rotuman"
+]
+
+def process_detailed_data(data, geo_idx_key):
+    headers = data[0]
+    idx = {h:i for i, h in enumerate(headers)}
+    
+    raw_storage = {}
+
+    for row in data[1:]:
+        geo_id = row[idx[geo_idx_key]]
+        label = row[idx["POPGROUP_LABEL"]]
+        pop = int(row[idx["T01001_001N"]]) if row[idx["T01001_001N"]] else 0
+        
+        if geo_id not in raw_storage:
+            raw_storage[geo_id] = {"groups": {}}
+
+        is_combo = " alone or in any combination" in label
+        is_alone = label.endswith(" alone")
+
+        clean_label = label.replace(" alone or in any combination", "").replace(" alone", "")
+        
+        if clean_label in AGGREGATE_LABELS or "Total" in label:
+            continue
+
+        if clean_label not in raw_storage[geo_id]["groups"]:
+            raw_storage[geo_id]["groups"][clean_label] = {"alone": 0, "max_total": 0}
+        
+        group = raw_storage[geo_id]["groups"][clean_label]
+
+        if is_combo or (not is_alone and not is_combo):
+            if pop > group["max_total"]:
+                group["max_total"] = pop
+        if is_alone:
+            group["alone"] = pop
+        elif not is_combo and group["alone"] == 0:
+            group["alone"] = pop
+
+    final_output = {}
+    for geo_id, data in raw_storage.items():
+        processed_list = []
+        for label, counts in data["groups"].items():
+            total_pop = counts["max_total"]
+            if total_pop == 0: continue
+            alone_pop = counts["alone"]
+            
+            processed_list.append({
+                "label": label,
+                "pop": total_pop,
+                "percent_alone": round((alone_pop / total_pop) * 100, 1) if total_pop > 0 else 0
+            })
+        
+        processed_list.sort(key=lambda x: x['pop'], reverse=True)
+        
+        final_output[geo_id] = {
+            "mce": processed_list[0]['label'] if processed_list else "Unknown",
+            "details": processed_list
+        }
+    return final_output
+
+def get_all_states_ethnicity():
+    r = requests.get(DEC_URL, params={"get": "group(T01001)", "POPGROUP": "*", "for": "state:*", "key": CENSUS_KEY})
+    return process_detailed_data(r.json(), "state")
+
+def get_counties_mce(state_fips):
+    r = requests.get(DEC_URL, params={"get": "group(T01001)", "POPGROUP": "*", "for": "county:*", "in": f"state:{state_fips}", "key": CENSUS_KEY})
+    return process_detailed_data(r.json(), "county")
+
+def get_tracts_mce(state_fips, county_fips):
+    r = requests.get(DEC_URL, params={"get": "group(T01001)", "POPGROUP": "*", "for": "tract:*", "in": f"state:{state_fips} county:{county_fips}", "key": CENSUS_KEY})
+    return process_detailed_data(r.json(), "tract")
