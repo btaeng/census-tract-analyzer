@@ -20,6 +20,10 @@ const tractFlagLayer = L.layerGroup().addTo(map);
 
 const colorCache = {};
 
+function clearAllLayers() {
+  [stateLayer, stateFlagLayer, countyLayer, countyFlagLayer, tractLayer, tractFlagLayer].forEach(l => l.clearLayers());
+}
+
 function fillDatalist(listId, dataMap) {
   const list = document.getElementById(listId);
   list.innerHTML = "";
@@ -54,19 +58,16 @@ document.getElementById("stateSearch").addEventListener("input", async (e) => {
 
   if (opt) {
     const fips = opt.dataset.id;
-    viewStack.push(fips);
+
+    clearAllLayers();
+    viewStack.length = 0;
+    viewStack.push('national', fips);
+
+    await loadCountyLevel(fips);
+    
     syncSearchUI();
     updateBackButton();
-    
-    findAndZoom(stateLayer, "STATEFP", fips);
-
-    stateLayer.clearLayers();
-    stateFlagLayer.clearLayers();
-    await loadCountyLevel(fips);
     showDetails(fips, 'state');
-    
-    document.getElementById("countySearch").disabled = false;
-    document.getElementById("countySearch").placeholder = "Search County...";
   }
 });
 
@@ -79,19 +80,19 @@ document.getElementById("countySearch").addEventListener("input", async (e) => {
     const stateFips = viewStack[1];
     const coFips = opt.dataset.id;
     
-    viewStack.push(stateFips + coFips);
-    syncSearchUI();
-    updateBackButton();
-
-    findAndZoom(countyLayer, "COUNTYFP", coFips);
-
     countyLayer.clearLayers();
     countyFlagLayer.clearLayers();
-    await loadTractLevel(stateFips, coFips);
-    showDetails(coFips, 'county');
+    tractLayer.clearLayers();
+    tractFlagLayer.clearLayers();
 
-    document.getElementById("tractSearch").disabled = false;
-    document.getElementById("tractSearch").placeholder = "Search Tract...";
+    viewStack.length = 0;
+    viewStack.push('national', stateFips, stateFips + coFips);
+
+    await loadTractLevel(stateFips, coFips);
+    
+    syncSearchUI();
+    updateBackButton();
+    showDetails(coFips, 'county');
   }
 });
 
@@ -103,11 +104,15 @@ document.getElementById("tractSearch").addEventListener("input", (e) => {
   if (opt) {
     const tFips = opt.dataset.id;
     const stateFips = viewStack[1];
-    const coFips = viewStack[2].slice(2);
+    const coFips = viewStack[2].slice(-3);
+
+    if (viewStack.length === 4) viewStack[3] = stateFips + coFips + tFips;
+    else viewStack.push(stateFips + coFips + tFips);
 
     findAndZoom(tractLayer, "TRACTCE", tFips);
 
     showDetails(tFips, 'tract');
+    syncSearchUI();
   }
 });
 
@@ -483,7 +488,7 @@ async function initStateMap() {
     const mceData = await getCachedData("/api/states-mce", null, 'states');
     fillDatalist("stateList", mceData);
 
-    L.geoJSON(statesGeo, {
+    const geojson = L.geoJSON(statesGeo, {
       style: (feature) => {
         const stateFips = feature.properties.STATEFP;
         const stateData = mceData[stateFips]; 
@@ -496,8 +501,14 @@ async function initStateMap() {
         };
       },
       onEachFeature: (feature, layer) => {
+        const name = feature.properties.NAME;
         const stateFips = feature.properties.STATEFP;
         const stateData = mceData[stateFips];
+        layer.bindTooltip(name, {
+          sticky: true,
+          direction: 'top',
+          className: 'geo-tooltip'
+        })
         if (!stateData) return;
 
         const center = turf.centroid(feature);
@@ -517,6 +528,17 @@ async function initStateMap() {
           loadCountyLevel(stateFips);
           showDetails(stateFips, 'state');
         });
+        layer.on('mouseover', function (e) {
+          this.setStyle({
+            weight: 3,
+            color: '#00ffff',
+            fillOpacity: 0.8
+          });
+          this.bringToFront();
+        });
+        layer.on('mouseout', function (e) {
+          geojson.resetStyle(this);
+        });
       }
     }).addTo(stateLayer);
     handleVisibility();
@@ -535,15 +557,21 @@ async function loadCountyLevel(stateFips) {
     const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
     fillDatalist("countyList", mceData);
 
-    L.geoJSON(countiesGeo, {
+    const geojson = L.geoJSON(countiesGeo, {
       style: (feature) => {
         const countyData = mceData[feature.properties.COUNTYFP];
         const winnerLabel = countyData ? countyData.mce : "Unknown";
         return { fillColor: getDynamicColor(winnerLabel), fillOpacity: 0.6, color: "white", weight: 0.5 };
       },
       onEachFeature: (feature, layer) => {
+        const name = feature.properties.NAME;
         const coFips = feature.properties.COUNTYFP;
         const countyData = mceData[coFips];
+        layer.bindTooltip(name, {
+          sticky: true,
+          direction: 'top',
+          className: 'geo-tooltip'
+        })
         if (!countyData) return;
 
         const center = turf.centroid(feature);
@@ -561,8 +589,20 @@ async function loadCountyLevel(stateFips) {
           loadTractLevel(stateFips, coFips);
           showDetails(coFips, 'county');
         });
+        layer.on('mouseover', function (e) {
+          this.setStyle({
+            weight: 3,
+            color: '#00ffff',
+            fillOpacity: 0.8
+          });
+          this.bringToFront();
+        });
+        layer.on('mouseout', function (e) {
+          geojson.resetStyle(this);
+        });
       }
     }).addTo(countyLayer);
+    map.fitBounds(geojson.getBounds());
     handleVisibility();
   } catch (err) {
     console.error("Failed to load counties:", err);
@@ -580,7 +620,7 @@ async function loadTractLevel(stateFips, coFips) {
     const mceData = await getCachedData(`/api/tracts-mce?state=${stateFips}&county=${coFips}`, geoid, 'tracts');
     fillDatalist("tractList", mceData);
 
-    L.geoJSON(tractsGeo, {
+    const geojson = L.geoJSON(tractsGeo, {
       style: (f) => {
         const tractData = mceData[f.properties.TRACTCE] || "Unknown";
         const winnerLabel = tractData.mce || "Unknown";
@@ -589,6 +629,11 @@ async function loadTractLevel(stateFips, coFips) {
       onEachFeature: (f, layer) => {
         const tFips = f.properties.TRACTCE;
         const tractData = mceData[tFips];
+        layer.bindTooltip(`Tract ${tFips}`, {
+          sticky: true,
+          direction: 'top',
+          className: 'geo-tooltip'
+        })
         if (!tractData) return;
 
         const center = turf.centroid(f);
@@ -609,8 +654,20 @@ async function loadTractLevel(stateFips, coFips) {
           map.fitBounds(e.target.getBounds());
           showDetails(tFips, 'tract');
         });
+        layer.on('mouseover', function (e) {
+          this.setStyle({
+            weight: 3,
+            color: '#00ffff',
+            fillOpacity: 0.8
+          });
+          this.bringToFront();
+        });
+        layer.on('mouseout', function (e) {
+          geojson.resetStyle(this);
+        });
       }
     }).addTo(tractLayer);
+    map.fitBounds(geojson.getBounds());
     handleVisibility();
   } catch (err) {
     console.error("Tract load failed", err);
