@@ -8,6 +8,23 @@
   </head>
   <body>
     <div id="map"></div>
+    <div id="searchContainer">
+      <div class="search-group">
+        <label>State</label>
+        <input list="stateList" id="stateSearch" placeholder="Search State...">
+        <datalist id="stateList"></datalist>
+      </div>
+      <div class="search-group">
+        <label>County</label>
+        <input list="countyList" id="countySearch" placeholder="Select a state first..." disabled>
+        <datalist id="countyList"></datalist>
+      </div>
+      <div class="search-group">
+        <label>Tract</label>
+        <input list="tractList" id="tractSearch" placeholder="Select a county first..." disabled>
+        <datalist id="tractList"></datalist>
+      </div>
+    </div>
     <button id="backButton" style="display: none;">&larr; Back</button>
     <div id="infoPanel" class="hidden">
       <button id="closePanel">&times;</button>

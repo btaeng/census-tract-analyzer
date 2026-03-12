@@ -48,3 +48,26 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
 th { background: #f4f4f4; position: sticky; top: 0; }
+
+#searchContainer {
+  position: absolute;
+  top: 10px;
+  left: 150px;
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.search-group { display: flex; flex-direction: column; }
+.search-group label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; }
+.search-group input { 
+  padding: 5px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  width: 150px; 
+}
+.search-group input:disabled { background: #eee; cursor: not-allowed; }

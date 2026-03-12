@@ -20,6 +20,97 @@ const tractFlagLayer = L.layerGroup().addTo(map);
 
 const colorCache = {};
 
+function fillDatalist(listId, dataMap) {
+  const list = document.getElementById(listId);
+  list.innerHTML = "";
+  const sorted = Object.entries(dataMap).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  
+  sorted.forEach(([id, obj]) => {
+    const opt = document.createElement("option");
+    opt.value = obj.name;
+    opt.dataset.id = id;
+    list.appendChild(opt);
+  });
+}
+
+function findAndZoom(layerGroup, propertyName, targetValue) {
+  layerGroup.eachLayer(item => {
+    if (item.eachLayer) {
+      item.eachLayer(layer => {
+        if (layer.feature && layer.feature.properties[propertyName] === targetValue) {
+          map.fitBounds(layer.getBounds());
+        }
+      });
+    } else if (item.feature && item.feature.properties[propertyName] === targetValue) {
+      map.fitBounds(item.getBounds());
+    }
+  });
+}
+
+document.getElementById("stateSearch").addEventListener("input", async (e) => {
+  const val = e.target.value;
+  const list = document.getElementById("stateList");
+  const opt = Array.from(list.options).find(o => o.value === val);
+
+  if (opt) {
+    const fips = opt.dataset.id;
+    viewStack.push(fips);
+    syncSearchUI();
+    updateBackButton();
+    
+    findAndZoom(stateLayer, "STATEFP", fips);
+
+    stateLayer.clearLayers();
+    stateFlagLayer.clearLayers();
+    await loadCountyLevel(fips);
+    showDetails(fips, 'state');
+    
+    document.getElementById("countySearch").disabled = false;
+    document.getElementById("countySearch").placeholder = "Search County...";
+  }
+});
+
+document.getElementById("countySearch").addEventListener("input", async (e) => {
+  const val = e.target.value;
+  const list = document.getElementById("countyList");
+  const opt = Array.from(list.options).find(o => o.value === val);
+
+  if (opt) {
+    const stateFips = viewStack[1];
+    const coFips = opt.dataset.id;
+    
+    viewStack.push(stateFips + coFips);
+    syncSearchUI();
+    updateBackButton();
+
+    findAndZoom(countyLayer, "COUNTYFP", coFips);
+
+    countyLayer.clearLayers();
+    countyFlagLayer.clearLayers();
+    await loadTractLevel(stateFips, coFips);
+    showDetails(coFips, 'county');
+
+    document.getElementById("tractSearch").disabled = false;
+    document.getElementById("tractSearch").placeholder = "Search Tract...";
+  }
+});
+
+document.getElementById("tractSearch").addEventListener("input", (e) => {
+  const val = e.target.value;
+  const list = document.getElementById("tractList");
+  const opt = Array.from(list.options).find(o => o.value === val);
+
+  if (opt) {
+    const tFips = opt.dataset.id;
+    const stateFips = viewStack[1];
+    const coFips = viewStack[2].slice(2);
+
+    findAndZoom(tractLayer, "TRACTCE", tFips);
+
+    showDetails(tFips, 'tract');
+  }
+});
+
 function handleVisibility() {
   const zoom = map.getZoom();
   const level = viewStack.length;
@@ -318,6 +409,31 @@ function updateBackButton() {
   btn.style.display = viewStack.length > 1 ? "block" : "none";
 }
 
+function syncSearchUI() {
+  const sIn = document.getElementById("stateSearch");
+  const cIn = document.getElementById("countySearch");
+  const tIn = document.getElementById("tractSearch");
+  const level = viewStack.length;
+
+  if (level === 1) {
+    sIn.value = "";
+    cIn.value = ""; cIn.disabled = true; cIn.placeholder = "Select a state first...";
+    tIn.value = ""; tIn.disabled = true; tIn.placeholder = "Select a county first...";
+  } else if (level === 2) {
+    const stateFips = viewStack[1];
+    sIn.value = dataCache.states[stateFips].name;
+    cIn.value = ""; cIn.disabled = false; cIn.placeholder = "Search County...";
+    tIn.value = ""; tIn.disabled = true; tIn.placeholder = "Select a county first...";
+  } else if (level === 3) {
+    const stateFips = viewStack[1];
+    const countyFullFips = viewStack[2];
+    const countyThreeDigit = countyFullFips.slice(-3);
+    
+    cIn.value = dataCache.counties[stateFips][countyThreeDigit].name;
+    tIn.value = ""; tIn.disabled = false; tIn.placeholder = "Search Tract...";
+  }
+}
+
 async function goBack() {
   viewStack.pop();
   const target = viewStack[viewStack.length - 1];
@@ -339,6 +455,7 @@ async function goBack() {
   
   updateBackButton();
   handleVisibility();
+  syncSearchUI();
   document.getElementById("infoPanel").classList.add("hidden");
 }
 
@@ -364,6 +481,7 @@ async function initStateMap() {
     const geoResp = await fetch("/static/data/us-states.geojson");
     const statesGeo = await geoResp.json();
     const mceData = await getCachedData("/api/states-mce", null, 'states');
+    fillDatalist("stateList", mceData);
 
     L.geoJSON(statesGeo, {
       style: (feature) => {
@@ -415,6 +533,7 @@ async function loadCountyLevel(stateFips) {
     const geoResp = await fetch(`/static/data/counties/${stateFips}.geojson`);
     const countiesGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
+    fillDatalist("countyList", mceData);
 
     L.geoJSON(countiesGeo, {
       style: (feature) => {
@@ -459,6 +578,7 @@ async function loadTractLevel(stateFips, coFips) {
     const geoResp = await fetch(`/static/data/tracts/${geoid}.geojson`);
     const tractsGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/tracts-mce?state=${stateFips}&county=${coFips}`, geoid, 'tracts');
+    fillDatalist("tractList", mceData);
 
     L.geoJSON(tractsGeo, {
       style: (f) => {
