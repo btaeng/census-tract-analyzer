@@ -44,10 +44,9 @@ function getFeatureStyle(feature, level) {
     if (viewMode === 'heatmap' && targetEthnicity) {
         const match = data.details.find(e => e.label === targetEthnicity);
         const pct = match ? match.percent_of_geo : 0;
-        console.log(`Styling ${feature.properties.NAME || feature.properties.TRACTCE} with ${targetEthnicity}: ${pct}%`);
         return {
             fillColor: getHeatColor(targetEthnicity, pct),
-            fillOpacity: 0.8,
+            fillOpacity: 0.85,
             color: "white",
             weight: 0.5
         };
@@ -61,13 +60,15 @@ function getFeatureStyle(feature, level) {
     }
 }
 
+let currentMaxPct = 0;
+
 function getHeatColor(label, percentage) {
     const baseColor = getDynamicColor(label);
-    const hueMatch = baseColor.match(/\d+/);
-    const hue = hueMatch ? hueMatch[0] : 0;
-    const lightness = Math.max(30, 95 - (percentage * 3.5)); 
+    const hue = baseColor.match(/\d+/)[0];
+    const ratio = currentMaxPct > 0 ? (percentage / currentMaxPct) : 0;
+    const lightness = 95 - (ratio * 65); 
     
-    return `hsl(${hue}, 90%, ${lightness}%)`;
+    return `hsl(${hue}, 85%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
@@ -528,16 +529,6 @@ async function getCachedData(url, cacheKey, cacheType) {
   return data;
 }
 
-function getHeatColor(label, percentage) {
-    const baseColor = getDynamicColor(label);
-    const hueMatch = baseColor.match(/\d+/);
-    if (!hueMatch) return "#ccc";
-    const hue = hueMatch[0];
-    
-    const lightness = Math.max(30, 95 - (percentage * 1.6)); 
-    return `hsl(${hue}, 80%, ${lightness}%)`;
-}
-
 function updateEthnicityList(detailsArray) {
     const list = document.getElementById("ethList");
     const uniqueEthnicities = new Set();
@@ -570,11 +561,11 @@ async function initStateMap() {
         const name = feature.properties.NAME;
         const stateFips = feature.properties.STATEFP;
         const stateData = mceData[stateFips];
-        layer.bindTooltip(name, {
+        layer.bindTooltip(`${name || 'Tract '+feature.properties.TRACTCE} (${stateData.mce})`, {
           sticky: true,
           direction: 'top',
           className: 'geo-tooltip'
-        })
+        });
         if (!stateData) return;
 
         const center = turf.centroid(feature);
@@ -630,11 +621,11 @@ async function loadCountyLevel(stateFips) {
         const name = feature.properties.NAME;
         const coFips = feature.properties.COUNTYFP;
         const countyData = mceData[coFips];
-        layer.bindTooltip(name, {
+        layer.bindTooltip(`${name || 'Tract '+feature.properties.TRACTCE} (${countyData.mce})`, {
           sticky: true,
           direction: 'top',
           className: 'geo-tooltip'
-        })
+        });
         if (!countyData) return;
 
         const center = turf.centroid(feature);
@@ -688,12 +679,14 @@ async function loadTractLevel(stateFips, coFips) {
       style: (f) => getFeatureStyle(f, 3),
       onEachFeature: (f, layer) => {
         const tFips = f.properties.TRACTCE;
-        const tractData = mceData[tFips];
-        layer.bindTooltip(`Tract ${tFips}`, {
+        const parentKey = viewStack[2];
+        const tractData = dataCache.tracts[parentKey][tFips];
+        const initialLabel = tractData ? ` (${tractData.mce})` : "";
+        layer.bindTooltip(`${f.properties.NAME || 'Tract '+tFips}${initialLabel}`, {
           sticky: true,
           direction: 'top',
           className: 'geo-tooltip'
-        })
+        });
         if (!tractData) return;
 
         const center = turf.centroid(f);
@@ -779,13 +772,51 @@ function showDetails(geoId, type) {
 function updateMapStyles() {
     const level = viewStack.length;
     let activeLayerGroup;
-    if (level === 1) activeLayerGroup = stateLayer;
-    else if (level === 2) activeLayerGroup = countyLayer;
-    else if (level === 3) activeLayerGroup = tractLayer;
+    let dataMap;
+    if (level === 1) { 
+        activeLayerGroup = stateLayer; 
+        dataMap = dataCache.states; 
+    } else if (level === 2) { 
+        activeLayerGroup = countyLayer; 
+        dataMap = dataCache.counties[viewStack[1]]; 
+    } else if (level === 3) { 
+        activeLayerGroup = tractLayer; 
+        dataMap = dataCache.tracts[viewStack[2]]; 
+    }
 
+    if (!dataMap) return;
+
+    if (viewMode === 'heatmap' && targetEthnicity) {
+        let max = 0;
+        Object.values(dataMap).forEach(geo => {
+            const match = geo.details.find(e => e.label === targetEthnicity);
+            if (match && match.percent_of_geo > max) max = match.percent_of_geo;
+        });
+        currentMaxPct = max;
+    }
     activeLayerGroup.eachLayer(geojson => {
         if (geojson.setStyle) {
-            geojson.setStyle(feature => getFeatureStyle(feature, level));
+            geojson.eachLayer(layer => {
+                const props = layer.feature.properties;
+                let id;
+                if (level === 1) id = props.STATEFP;
+                else if (level === 2) id = props.COUNTYFP;
+                else if (level === 3) id = props.TRACTCE;
+                const data = dataMap[id];
+                if (!data) return;
+
+                layer.setStyle(getFeatureStyle(layer.feature, level));
+
+                let tooltipContent = props.NAME || `Tract ${props.TRACTCE}`;
+                if (viewMode === 'heatmap' && targetEthnicity) {
+                    const match = data.details.find(e => e.label === targetEthnicity);
+                    const pct = match ? match.percent_of_geo : 0;
+                    tooltipContent += `: ${pct}%`;
+                } else {
+                    tooltipContent += ` (${data.mce})`;
+                }
+                layer.setTooltipContent(tooltipContent);
+            });
         }
     });
 }
