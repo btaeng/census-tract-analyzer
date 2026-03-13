@@ -1,126 +1,83 @@
-# Census Tract Analyzer
+# Census Ethnic Explorer
 
-An interactive web app that uses the U.S. Census API to display demographic and economic data for individual census tracts.
-The map highlights the chosen tract and shows tables for **age distribution, income statistics, and ethnicity**.
+An advanced geospatial analysis tool that visualizes the ethnic landscape of the United States using 2020 Decennial Census data. This app provides a seamless drill-down experience from the national level down to individual census tracts, featuring custom ethnic ensigns and normalized heatmap analysis.
 
-## Features
+## Key Features
 
-* Leaflet map highlighting the selected tract
-* Pulls data from the U.S. Census **Decennial** and **ACS** APIs
-* Age and ethnicity displayed as sortable tables
-* Income statistics (household, family, per capita) displayed clearly
-* Input form to enter **state, county, and tract codes**
+- **Multi-Level Drill-Down:** Explore data at the state, county, and census tract levels through interactive map clicks.
+- **Most Common Ethnicity (MCE) Mapping:** Every geography is color-coded based on its dominant ethnic group, with custom cultural ensigns/flags pinned to each region.
+- **Dynamic Heatmap Engine:** Single out any of the 100+ tracked ethnicities to see their concentration across the map. Features local normalization, ensuring that even small populations (e.g., 2% concentration) are visualized with deep color intensity relative to the current view.
+- **Intelligent Search:** Synchronized search bars for states, counties, and tracts that update dynamically as you navigate.
+- **Detailed Analytics Sidebar:** Instant access to full ethnic breakdowns, including raw population counts and "% Alone" (intra-group identification) statistics.
+- **Session Caching:** All Census API data is cached locally during the session for instantaneous back-and-forth navigation.
+
+## Performance & Optimization
+
+- **Zoom-Dependent Visibility:** Flags and shapes automatically despawn when zooming out to maintain a clean, readable map.
+- **Deterministic Color Hashing:** Uses a golden-angle HSL hashing algorithm to ensure every ethnicity has a unique, vibrant, and consistent color across refreshes.
+- **Hybrid Flag System:** Combines geopolitical flags (via FlagCDN) with custom cultural ensigns for stateless groups (Hmong, Assyrian, etc.) and indigenous nations.
 
 ---
 
 ## Requirements
 
-* Python 3.9+
-* [Flask](https://flask.palletsprojects.com/en/stable/)
-* [python-dotenv](https://saurabh-kumar.com/python-dotenv/)
-* [requests](https://docs.python-requests.org/en/latest/)
+- Python 3.9+
+- [Flask](https://flask.palletsprojects.com/en/stable/) & [Flask-CORS](https://flask-cors.readthedocs.io/en/latest/)
+- [requests](https://requests.readthedocs.io/en/latest/) & [python-dotenv](https://saurabh-kumar.com/python-dotenv/)
+- **Frontend:** Leaflet.js, Turf.js (loaded via CDN)
 
 ---
 
 ## Installation & Setup
 
-1. **Clone the repository**:
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/census-ethnic-explorer.git
+cd census-ethnic-explorer
+```
 
-   ```bash
-   git clone https://github.com/btaeng/census-tract-analyzer.git
-   cd census-tract-analyzer
-   ```
+2. Set up a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
+```
 
-2. **Set up a virtual environment** (recommended):
+3. Install dependencies:
+```bash
+pip install Flask flask-cors requests python-dotenv
+```
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate   # on macOS/Linux
-   venv\Scripts\activate      # on Windows
-   ```
+4. Configure API Key:
+Create a `.env` file in the root directory:
+```
+CENSUS_API_KEY=your_census_bureau_key_here
+```
 
-3. **Install dependencies**:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   If you don’t have a `requirements.txt` yet, here’s what to include:
-
-   ```
-   Flask
-   flask-cors
-   requests
-   python-dotenv
-   ```
-
-4. **Get a Census API Key**
-
-   Request one free from: [https://api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html)
-
-5. **Configure environment variables**
-
-   Copy the example file:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Open `.env` and add your key:
-
-   ```
-   CENSUS_API_KEY=your_api_key_here
-   ```
-
-6. **Run the Flask app**:
-
-   ```bash
-   python app.py
-   ```
-
-   **If you are using Docker, run these two commands instead:**
-
-   ```bash
-   docker build -t census-tract-analyzer .
-   docker run -p 5000:5000 --env-file .env census-tract-analyzer
-   ```
-
-   By default this starts a server at [http://127.0.0.1:5000](http://127.0.0.1:5000).
-
-7. **Open the web app**
-
-   In your browser, go to:
-
-   ```
-   http://127.0.0.1:5000/static/index.html
-   ```
+5. Data Requirements (GeoJSON):
+This app requires specific GeoJSON files in the `static/data/` folder:
+- `us-states.geojson`: National state outlines (using `STATEFP`).
+- `counties/[STATE_FIPS].geojson`: County outlines for each state.
+- `tracts/[COUNTY_GEOID].geojson`: Tract outlines for each county.
 
 ---
 
 ## Usage
 
-* Enter the **state FIPS**, **county FIPS**, and **tract code** in the sidebar form.
-* Click **Submit** to load the tract.
-* The map will highlight the tract and the sidebar will show demographic and economic stats.
+1. Run the app: `python app.py`
+2. Navigate: 
+- Click a state to see its counties.
+- Click a county to see its census tracts.
+- Use the back button to return to the previous level.
+3. Analyze:
+- Hover over any area to see a tag with the name and dominant group.
+- Click an area to open the details sidebar.
+4. Heatmap:
+- Type an ethnicity into the Heatmap Search or click an ethnicity name in the sidebar table to toggle Heatmap Mode.
+- Click "Reset to Dominant" to return to the MCE view.
 
----
-
-## Default Inputs
-
-* **State (CA)**: `06`
-* **County (Alameda)**: `001`
-* **Tract**: `450200`
-
----
-
-## Security
-
-* **DO NOT SHOW ANYONE YOUR API KEY.** Your `.env` file (with your API key) should **never** be posted online.
-* The repo includes `.env.example` for reference.
-* Add `.env` to `.gitignore` to keep your key private.
-
----
+## Note on Connecticut
+To maintain geographic consistency, this app utilizes the 2020 Census Vintage. This ensures that Connecticut is mapped using its legacy 8-county system rather than the newer Planning Region system, preventing data mismatches between ACS and Decennial tables.
 
 ## License
-
 MIT License. See [LICENSE](LICENSE) for details.
