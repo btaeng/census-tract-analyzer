@@ -2,14 +2,16 @@
 
 An advanced geospatial analysis tool that visualizes the ethnic landscape of the United States using 2020 Decennial Census data. This app provides a seamless drill-down experience from the national level down to individual census tracts, featuring custom ethnic ensigns and normalized heatmap analysis.
 
+**Note:** This application comes pre-loaded with a local SQLite database containing processed Census data, allowing for near-instant loading times and offline functionality.
+
 ## Key Features
 
+- **Instant Performance:** No API calls required during navigation; data is queried from a local 180MB SQLite database.
 - **Multi-Level Drill-Down:** Explore data at the state, county, and census tract levels through interactive map clicks.
 - **Most Common Ethnicity (MCE) Mapping:** Every geography is color-coded based on its dominant ethnic group, with custom cultural ensigns/flags pinned to each region.
 - **Dynamic Heatmap Engine:** Single out any of the 100+ tracked ethnicities to see their concentration across the map. Features local normalization, ensuring that even small populations (e.g., 2% concentration) are visualized with deep color intensity relative to the current view.
 - **Intelligent Search:** Synchronized search bars for states, counties, and tracts that update dynamically as you navigate.
 - **Detailed Analytics Sidebar:** Instant access to full ethnic breakdowns, including raw population counts and "% Alone" (intra-group identification) statistics.
-- **Session Caching:** All Census API data is cached locally during the session for instantaneous back-and-forth navigation.
 
 ## Performance & Optimization
 
@@ -23,42 +25,40 @@ An advanced geospatial analysis tool that visualizes the ethnic landscape of the
 
 - Python 3.9+
 - [Flask](https://flask.palletsprojects.com/en/stable/) & [Flask-CORS](https://flask-cors.readthedocs.io/en/latest/)
-- [requests](https://requests.readthedocs.io/en/latest/) & [python-dotenv](https://saurabh-kumar.com/python-dotenv/)
 - **Frontend:** Leaflet.js, Turf.js (loaded via CDN)
+- **Git LFS:** Required to download the pre-built census database.
 
 ---
 
 ## Installation & Setup
 
-1. Clone the repository:
+1. Install Git LFS (if not already installed):
+Follow instructions at [git-lfs.com](https://git-lfs.com/).
+
+2. Clone the repository:
 ```bash
-git clone https://github.com/your-username/census-ethnic-explorer.git
-cd census-ethnic-explorer
+git clone https://github.com/your-username/census-tract-analyzer.git
+cd census-tract-analyzer
 ```
 
-2. Set up a virtual environment:
+3. Set up a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate     # Windows
 ```
 
-3. Install dependencies:
+4. Install dependencies:
 ```bash
-pip install Flask flask-cors requests python-dotenv
+pip install Flask flask-cors
 ```
 
-4. Configure API Key:
-Create a `.env` file in the root directory:
-```
-CENSUS_API_KEY=your_census_bureau_key_here
-```
-
-5. Data Requirements (GeoJSON):
-This app requires specific GeoJSON files in the `static/data/` folder:
-- `us-states.geojson`: National state outlines (using `STATEFP`).
-- `counties/[STATE_FIPS].geojson`: County outlines for each state.
-- `tracts/[COUNTY_GEOID].geojson`: Tract outlines for each county.
+5. Data Requirements:
+This app requires specific files in the project root and `static/data/` folders:
+- `static/data/us-states.geojson`: National state outlines (using `STATEFP`).
+- `static/data/counties/[STATE_FIPS].geojson`: County outlines for each state.
+- `static/data/tracts/[COUNTY_GEOID].geojson`: Tract outlines for each county.
+- `census_data.db`: A SQLite database containing MCE and detailed ethnic population data for every state, county, and tract in the US.
 
 ---
 
