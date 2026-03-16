@@ -90,52 +90,64 @@ AGGREGATE_LABELS = [
     "Mexican Indian (all tribes)"
 ]
 
-def get_pl_total_pops(geo_for, geo_in=None):
+def get_pl_total_pops(geo_for, state_fips=None, county_fips=None):
     params = {"get": "P1_001N", "for": geo_for, "key": CENSUS_KEY}
-    if geo_in: params["in"] = geo_in
-    r = requests.get(PL_URL, params=params, timeout=10)
-    r.raise_for_status()
+    level = geo_for.split(':')[0]
+    if state_fips:
+        params["in"] = f"state:{state_fips}"
+        if county_fips:
+            params["in"] += f" county:{county_fips}"
+
+    r = requests.get(PL_URL, params=params)
     data = r.json()
     headers = data[0]
-
-    geo_key = geo_for.split(':')[0] 
     idx_pop = headers.index("P1_001N")
-    idx_geo = headers.index(geo_key)
     
-    return {row[idx_geo]: int(row[idx_pop]) for row in data[1:]}
+    res = {}
+    for row in data[1:]:
+        short_id = row[headers.index(level)]
+        if level == "state": full_id = short_id
+        elif level == "county": full_id = state_fips + short_id
+        elif level == "tract": full_id = state_fips + county_fips + short_id
+        res[full_id] = int(row[idx_pop])
+    return res
 
-def process_detailed_data(data, totals_map, geo_idx_key):
-    headers = data[0]
-    idx = {h:i for i, h in enumerate(headers)}
-    
+def process_detailed_data(ethnic_json, true_totals_map, level, state_fips=None, county_fips=None):
+    headers = ethnic_json[0]
+    idx = {h: i for i, h in enumerate(headers)}
     raw_storage = {}
 
-    for row in data[1:]:
-        geo_id = row[idx[geo_idx_key]]
-        label = row[idx["POPGROUP_LABEL"]].strip() 
-        geo_name = row[idx["NAME"]] 
+    geo_key_map = {"state": "state", "county": "county", "tract": "tract"}
+    geo_idx_key = geo_key_map[level]
+
+    for row in ethnic_json[1:]:
+        short_id = row[idx[geo_idx_key]]
+        if level == "state":
+            full_id = short_id
+        elif level == "county":
+            full_id = state_fips + short_id
+        elif level == "tract":
+            full_id = state_fips + county_fips + short_id
+        
+        label = row[idx["POPGROUP_LABEL"]].strip()
+        geo_name = row[idx["NAME"]]
         pop = int(row[idx["T01001_001N"]]) if row[idx["T01001_001N"]] else 0
         
-        if geo_id not in raw_storage:
-            total_land_pop = totals_map.get(geo_id, 0)
-            raw_storage[geo_id] = {"groups": {}, "name": geo_name, "total_pop": total_land_pop}
-
-        if label.lower() in ["total", "total population"]:
-            raw_storage[geo_id]["total_pop"] = pop
-            continue
+        if full_id not in raw_storage:
+            total_land_pop = true_totals_map.get(full_id, 0)
+            raw_storage[full_id] = {"groups": {}, "name": geo_name, "total_pop": total_land_pop}
 
         is_combo = " alone or in any combination" in label
         is_alone = label.endswith(" alone")
-
         clean_label = label.replace(" alone or in any combination", "").replace(" alone", "").strip()
         
         if clean_label in AGGREGATE_LABELS:
             continue
 
-        if clean_label not in raw_storage[geo_id]["groups"]:
-            raw_storage[geo_id]["groups"][clean_label] = {"alone": 0, "max_total": 0}
+        if clean_label not in raw_storage[full_id]["groups"]:
+            raw_storage[full_id]["groups"][clean_label] = {"alone": 0, "max_total": 0}
         
-        group = raw_storage[geo_id]["groups"][clean_label]
+        group = raw_storage[full_id]["groups"][clean_label]
 
         if is_combo or (not is_alone and not is_combo):
             if pop > group["max_total"]:

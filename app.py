@@ -1,42 +1,60 @@
+import sqlite3, os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from census_client import get_all_states_ethnicity, get_counties_mce, get_tracts_mce
-import os
 
 app = Flask(__name__)
 CORS(app)
+
+DB_PATH = "census_data.db"
+
+def get_from_db(level, parent_id=None):
+    if not os.path.exists(DB_PATH):
+        return None
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
     
+    query = "SELECT * FROM geographies WHERE level = ?"
+    params = [level]
+    if parent_id:
+        query += " AND geoid LIKE ?"
+        params.append(f"{parent_id}%")
+
+    cur.execute(query, params)
+    geos = cur.fetchall()
+    
+    output = {}
+    for g in geos:
+        gid = g['geoid']
+        cur.execute("""SELECT label, pop, percent_alone, percent_of_geo 
+                       FROM details WHERE geoid = ? ORDER BY pop DESC""", (gid,))
+        details = [dict(row) for row in cur.fetchall()]
+        
+        output[gid] = {
+            "name": g['name'],
+            "mce": g['mce'],
+            "total_geo_pop": g['total_pop'],
+            "details": details
+        }
+    conn.close()
+    return output
+
 @app.get("/api/states-mce")
 def states_mce():
-    try:
-        data = get_all_states_ethnicity()
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
-    
+    return jsonify(get_from_db('state'))
+
 @app.get("/api/counties-mce")
 def counties_mce():
-    state_fips = request.args.get("state")
-    if not state_fips:
-        return jsonify({"error": "Missing state parameter"}), 400
-    try:
-        data = get_counties_mce(state_fips)
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
+    return jsonify(get_from_db('county', parent_id=request.args.get("state")))
 
 @app.get("/api/tracts-mce")
 def tracts_mce():
-    state = request.args.get("state")
-    county = request.args.get("county")
-    if not state or not county:
-        return jsonify({"error": "Missing state or county parameter"}), 400
-    try:
-        data = get_tracts_mce(state, county)
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
+    county_geoid = request.args.get("county", "")
+    if not county_geoid:
+        return jsonify({"error": "Missing county parameter"}), 400
+    data = get_from_db('tract', parent_id=county_geoid)
+    return jsonify(data) if data else (jsonify({"error": "No tract data found"}), 404)
 
 if __name__ == "__main__":
-    host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
-    app.run(host=host, port=5000, debug=True)
+    app.run(port=5000, debug=True)

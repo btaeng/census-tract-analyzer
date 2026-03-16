@@ -32,10 +32,10 @@ function getFeatureStyle(feature, level) {
         id = props.STATEFP;
         data = dataCache.states[id];
     } else if (level === 2) {
-        id = props.COUNTYFP;
+        id = viewStack[1] + props.COUNTYFP;
         data = dataCache.counties[viewStack[1]] ? dataCache.counties[viewStack[1]][id] : null;
     } else if (level === 3) {
-        id = props.TRACTCE;
+        id = viewStack[2] + props.TRACTCE;
         data = dataCache.tracts[viewStack[2]] ? dataCache.tracts[viewStack[2]][id] : null;
     }
 
@@ -139,7 +139,7 @@ document.getElementById("countySearch").addEventListener("input", async (e) => {
     viewStack.length = 0;
     viewStack.push('national', stateFips, stateFips + coFips);
 
-    await loadTractLevel(stateFips, coFips);
+    await loadTractLevel(coFips);
     
     syncSearchUI();
     updateBackButton();
@@ -503,7 +503,7 @@ async function goBack() {
   } else if (target.length === 5) {
     const stateFips = target.substring(0, 2);
     const coFips = target.substring(2, 5);
-    loadTractLevel(stateFips, coFips);
+    loadTractLevel(coFips);
   }
   
   updateBackButton();
@@ -608,8 +608,9 @@ async function loadCountyLevel(stateFips) {
   try {
     stateLayer.clearLayers();
     stateFlagLayer.clearLayers();
-    
+
     const geoResp = await fetch(`/static/data/counties/${stateFips}.geojson`);
+    if (!geoResp.ok) throw new Error("GeoJSON file not found on server");
     const countiesGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
     fillDatalist("countyList", mceData);
@@ -619,7 +620,7 @@ async function loadCountyLevel(stateFips) {
       style: (feature) => getFeatureStyle(feature, 2),
       onEachFeature: (feature, layer) => {
         const name = feature.properties.NAME;
-        const coFips = feature.properties.COUNTYFP;
+        const coFips = stateFips + feature.properties.COUNTYFP;
         const countyData = mceData[coFips];
         layer.bindTooltip(`${name || 'Tract '+feature.properties.TRACTCE} (${countyData.mce})`, {
           sticky: true,
@@ -637,10 +638,10 @@ async function loadCountyLevel(stateFips) {
         L.marker([lat, lng], { icon: icon, interactive: false }).addTo(countyFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
-          viewStack.push(stateFips + coFips);
+          viewStack.push(coFips);
           updateBackButton();
           map.fitBounds(e.target.getBounds());
-          loadTractLevel(stateFips, coFips);
+          loadTractLevel(coFips);
           showDetails(coFips, 'county');
         });
         layer.on('mouseover', function (e) {
@@ -663,26 +664,27 @@ async function loadCountyLevel(stateFips) {
   }
 }
 
-async function loadTractLevel(stateFips, coFips) {
+async function loadTractLevel(coFips) {
   try {
     countyLayer.clearLayers();
     countyFlagLayer.clearLayers();
     
-    const geoid = stateFips + coFips;
+    const geoid = coFips;
     const geoResp = await fetch(`/static/data/tracts/${geoid}.geojson`);
     const tractsGeo = await geoResp.json();
-    const mceData = await getCachedData(`/api/tracts-mce?state=${stateFips}&county=${coFips}`, geoid, 'tracts');
+    const mceData = await getCachedData(`/api/tracts-mce?county=${coFips}`, coFips, 'tracts');
     fillDatalist("tractList", mceData);
     updateEthnicityList(Object.values(mceData));
 
     const geojson = L.geoJSON(tractsGeo, {
       style: (f) => getFeatureStyle(f, 3),
       onEachFeature: (f, layer) => {
-        const tFips = f.properties.TRACTCE;
         const parentKey = viewStack[2];
-        const tractData = dataCache.tracts[parentKey][tFips];
-        const initialLabel = tractData ? ` (${tractData.mce})` : "";
-        layer.bindTooltip(`${f.properties.NAME || 'Tract '+tFips}${initialLabel}`, {
+        const shortTract = String(f.properties.TRACTCE).padStart(6, '0');
+        const fullTractID = parentKey + shortTract;
+        const tractData = mceData[fullTractID];
+        const mceLabel = tractData ? ` (${tractData.mce})` : " (No Data)";
+        layer.bindTooltip(`${f.properties.NAME || 'Tract ' + shortTract}${mceLabel}`, {
           sticky: true,
           direction: 'top',
           className: 'geo-tooltip'
@@ -697,15 +699,14 @@ async function loadTractLevel(stateFips, coFips) {
         }).addTo(tractFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
-          const tractFullID = stateFips + coFips + tFips;
           if (viewStack.length === 4) {
-            viewStack[3] = tractFullID;
+            viewStack[3] = fullTractID;
           } else {
-            viewStack.push(tractFullID);
+            viewStack.push(fullTractID);
           }
           updateBackButton();
           map.fitBounds(e.target.getBounds());
-          showDetails(tFips, 'tract');
+          showDetails(fullTractID, 'tract');
         });
         layer.on('mouseover', function (e) {
           this.setStyle({
@@ -800,8 +801,8 @@ function updateMapStyles() {
                 const props = layer.feature.properties;
                 let id;
                 if (level === 1) id = props.STATEFP;
-                else if (level === 2) id = props.COUNTYFP;
-                else if (level === 3) id = props.TRACTCE;
+                else if (level === 2) id = viewStack[1] + props.COUNTYFP;
+                else if (level === 3) id = viewStack[2] + props.TRACTCE;
                 const data = dataMap[id];
                 if (!data) return;
 
