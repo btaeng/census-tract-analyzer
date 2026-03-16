@@ -6,3 +6,6 @@ __pycache__/
 venv/
 zips/
 .pytest_cache/
+all_tracts/
+all_counties.geojson
+request-private-do-not-commit.py
