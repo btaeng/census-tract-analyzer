@@ -472,16 +472,36 @@ function syncSearchUI() {
     tIn.value = ""; tIn.disabled = true; tIn.placeholder = "Select a county first...";
   } else if (level === 2) {
     const stateFips = viewStack[1];
-    sIn.value = dataCache.states[stateFips].name;
+    const stateData = dataCache.states[stateFips];
+    sIn.value = stateData ? stateData.name : stateFips;
     cIn.value = ""; cIn.disabled = false; cIn.placeholder = "Search County...";
     tIn.value = ""; tIn.disabled = true; tIn.placeholder = "Select a county first...";
   } else if (level === 3) {
     const stateFips = viewStack[1];
     const countyFullFips = viewStack[2];
-    const countyThreeDigit = countyFullFips.slice(-3);
+    const stateData = dataCache.states[stateFips];
+    const countyData = dataCache.counties[stateFips] ? dataCache.counties[stateFips][countyFullFips] : null;
     
-    cIn.value = dataCache.counties[stateFips][countyThreeDigit].name;
+    sIn.value = stateData ? stateData.name : stateFips;
+    cIn.value = countyData ? countyData.name : countyFullFips;
+    
+    cIn.disabled = false;
     tIn.value = ""; tIn.disabled = false; tIn.placeholder = "Search Tract...";
+  } else if (level === 4) {
+    const stateFips = viewStack[1];
+    const countyFullFips = viewStack[2];
+    const tractFullFips = viewStack[3];
+
+    const stateData = dataCache.states[stateFips];
+    const countyData = dataCache.counties[stateFips] ? dataCache.counties[stateFips][countyFullFips] : null;
+    const tractData = dataCache.tracts[countyFullFips] ? dataCache.tracts[countyFullFips][tractFullFips] : null;
+
+    sIn.value = stateData ? stateData.name : stateFips;
+    cIn.value = countyData ? countyData.name : countyFullFips;
+    tIn.value = tractData ? tractData.name : tractFullFips;
+
+    cIn.disabled = false;
+    tIn.disabled = false;
   }
 }
 
@@ -624,7 +644,7 @@ async function loadCountyLevel(stateFips) {
         const shortCo = String(feature.properties.COUNTYFP).padStart(3, '0');
         const fullCoID = stateFips + shortCo; 
         const countyData = mceData[fullCoID];
-        
+
         layer.bindTooltip(`${name || 'Tract '+feature.properties.TRACTCE} (${countyData.mce})`, {
           sticky: true,
           direction: 'top',
