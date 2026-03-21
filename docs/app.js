@@ -661,11 +661,11 @@ async function loadCountyLevel(stateFips) {
         L.marker([lat, lng], { icon: icon, interactive: false }).addTo(countyFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
-          viewStack.push(coFips);
+          viewStack.push(fullCoID);
           updateBackButton();
           map.fitBounds(e.target.getBounds());
-          loadTractLevel(coFips);
-          showDetails(coFips, 'county');
+          loadTractLevel(fullCoID);
+          showDetails(fullCoID, 'county');
         });
         layer.on('mouseover', function (e) {
           this.setStyle({
