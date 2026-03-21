@@ -621,8 +621,10 @@ async function loadCountyLevel(stateFips) {
       style: (feature) => getFeatureStyle(feature, 2),
       onEachFeature: (feature, layer) => {
         const name = feature.properties.NAME;
-        const coFips = stateFips + feature.properties.COUNTYFP;
-        const countyData = mceData[coFips];
+        const shortCo = String(feature.properties.COUNTYFP).padStart(3, '0');
+        const fullCoID = stateFips + shortCo; 
+        const countyData = mceData[fullCoID];
+        
         layer.bindTooltip(`${name || 'Tract '+feature.properties.TRACTCE} (${countyData.mce})`, {
           sticky: true,
           direction: 'top',
