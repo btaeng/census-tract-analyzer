@@ -128,16 +128,11 @@ document.getElementById("countySearch").addEventListener("input", async (e) => {
   const opt = Array.from(list.options).find(o => o.value === val);
 
   if (opt) {
-    const stateFips = viewStack[1];
     const coFips = opt.dataset.id;
+    const stFips = coFips.substring(0, 2);
     
-    countyLayer.clearLayers();
-    countyFlagLayer.clearLayers();
-    tractLayer.clearLayers();
-    tractFlagLayer.clearLayers();
-
     viewStack.length = 0;
-    viewStack.push('national', stateFips, stateFips + coFips);
+    viewStack.push('national', stFips, coFips);
 
     await loadTractLevel(coFips);
     
@@ -154,13 +149,14 @@ document.getElementById("tractSearch").addEventListener("input", (e) => {
 
   if (opt) {
     const tFips = opt.dataset.id;
-    const stateFips = viewStack[1];
-    const coFips = viewStack[2].slice(-3);
+    const tShortFips = tFips.slice(-6);
 
-    if (viewStack.length === 4) viewStack[3] = stateFips + coFips + tFips;
-    else viewStack.push(stateFips + coFips + tFips);
+    // Update stack
+    if (viewStack.length === 4) viewStack[3] = tFips;
+    else viewStack.push(tFips);
 
-    findAndZoom(tractLayer, "TRACTCE", tFips);
+    // Zoom to existing shape
+    findAndZoom(tractLayer, "TRACTCE", tShortFips);
 
     showDetails(tFips, 'tract');
     syncSearchUI();
