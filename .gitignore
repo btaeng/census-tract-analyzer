@@ -9,3 +9,4 @@ zips/
 all_tracts/
 all_counties.geojson
 request-private-do-not-commit.py
+census-exporter/target/
