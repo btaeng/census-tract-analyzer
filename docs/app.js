@@ -517,8 +517,7 @@ async function goBack() {
   } else if (target.length === 2) {
     await loadCountyLevel(target);
   } else if (target.length === 5) {
-    const stateFips = target.substring(0, 2);
-    await loadCountyLevel(stateFips);
+    await loadTractLevel(target);
   }
   
   updateBackButton();
