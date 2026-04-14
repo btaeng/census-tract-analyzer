@@ -811,6 +811,23 @@ function showDetails(geoId, type) {
     `;
 }
 
+function zoomToGeography(geoId, level) {
+    let layerGroup;
+    let propertyName;
+    
+    if (level === 2) {
+        layerGroup = countyLayer;
+        propertyName = 'COUNTYFP';
+        const countyFips = geoId.substring(2, 5);
+        findAndZoom(layerGroup, propertyName, countyFips);
+    } else if (level === 3) {
+        layerGroup = tractLayer;
+        propertyName = 'TRACTCE';
+        const tractCE = geoId.slice(-6);
+        findAndZoom(layerGroup, propertyName, tractCE);
+    }
+}
+
 function showRankings() {
     const level = viewStack.length;
     if (level !== 2 && level !== 3) return; // Only show rankings at state/county level
@@ -851,7 +868,7 @@ function showRankings() {
             <tbody>
                 ${rankings.map(r => `
                     <tr>
-                        <td>${r.name}</td>
+                        <td class="clickable-geog" onclick="zoomToGeography('${r.id}', ${level})" style="cursor:pointer; color:blue; text-decoration:underline;">${r.name}</td>
                         <td>${r.percentage}%</td>
                         <td>${r.population.toLocaleString()}</td>
                     </tr>
