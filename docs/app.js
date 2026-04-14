@@ -780,6 +780,19 @@ function showDetails(geoId, type) {
     }
 
     panel.classList.remove("hidden");
+    
+    // Reset to details tab
+    document.getElementById("statsContent").style.display = "block";
+    document.getElementById("rankingsContent").style.display = "none";
+    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    document.querySelector("[data-tab='details']").classList.add("active");
+    
+    // Hide tabs if not in heatmap mode or not at state/county level
+    const level = viewStack.length;
+    if (viewMode !== 'heatmap' || (level !== 2 && level !== 3)) {
+        document.getElementById("tabContainer").style.display = "none";
+    }
+    
     content.innerHTML = `
         <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
         <p style="margin-top:-10px; color:#666;">Dominant: ${data.mce}</p>
@@ -798,6 +811,102 @@ function showDetails(geoId, type) {
             </tbody>
         </table>
     `;
+}
+
+function showRankings() {
+    const level = viewStack.length;
+    if (level !== 2 && level !== 3) return; // Only show rankings at state/county level
+    
+    const rankingsContent = document.getElementById("rankingsContent");
+    let dataMap;
+    
+    if (level === 2) {
+        dataMap = dataCache.counties[viewStack[1]];
+    } else if (level === 3) {
+        dataMap = dataCache.tracts[viewStack[2]];
+    }
+    
+    if (!dataMap || !targetEthnicity) return;
+    
+    // Build array of geographies with sorted percentages
+    const rankings = Object.entries(dataMap).map(([id, data]) => {
+        const match = data.details.find(e => e.label === targetEthnicity);
+        return {
+            id: id,
+            name: data.name,
+            percentage: match ? match.percent_of_geo : 0,
+            population: match ? match.pop : 0
+        };
+    }).sort((a, b) => b.percentage - a.percentage);
+    
+    rankingsContent.innerHTML = `
+        <h3 style="margin-top:0; font-size:1.1em;">${targetEthnicity}</h3>
+        <p style="margin-top:-10px; color:#666;">Ranked by % of geography</p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="sort-col" data-col="name">Geography</th>
+                    <th class="sort-col" data-col="percentage">%</th>
+                    <th class="sort-col" data-col="population">Pop</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rankings.map(r => `
+                    <tr>
+                        <td>${r.name}</td>
+                        <td>${r.percentage}%</td>
+                        <td>${r.population.toLocaleString()}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    // Attach sort handlers
+    rankingsContent.querySelectorAll('.sort-col').forEach(th => {
+        th.addEventListener('click', (e) => sortTable(e.target));
+    });
+}
+
+function sortTable(header) {
+    const table = header.closest('table');
+    const col = header.dataset.col;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Determine sort direction
+    const isAsc = header.classList.contains('sort-asc');
+    
+    // Clear all sort indicators
+    table.querySelectorAll('th').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+    });
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        const cellIndex = Array.from(a.cells).indexOf(a.cells[Array.from(header.parentElement.cells).indexOf(header)]);
+        
+        aVal = a.cells[cellIndex].textContent.trim();
+        bVal = b.cells[cellIndex].textContent.trim();
+        
+        // Try to parse as number
+        const aNum = parseFloat(aVal.replace('%', '').replace(',', ''));
+        const bNum = parseFloat(bVal.replace('%', '').replace(',', ''));
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return isAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        // String comparison
+        return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+    });
+    
+    // Update header styling
+    header.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+    
+    // Reorder rows
+    rows.forEach(row => tbody.appendChild(row));
 }
 
 function updateMapStyles() {
@@ -863,6 +972,13 @@ document.getElementById("ethSearch").addEventListener("input", (e) => {
         document.getElementById("clearHeatmap").style.display = "block";
         updateMapStyles();
         handleVisibility();
+        
+        // Show rankings tab if at state or county level
+        const level = viewStack.length;
+        if (level === 2 || level === 3) {
+            document.getElementById("tabContainer").style.display = "flex";
+            showRankings();
+        }
     }
 });
 
@@ -871,6 +987,11 @@ document.getElementById("clearHeatmap").onclick = () => {
     targetEthnicity = null;
     document.getElementById("ethSearch").value = "";
     document.getElementById("clearHeatmap").style.display = "none";
+    document.getElementById("tabContainer").style.display = "none";
+    document.getElementById("rankingsContent").style.display = "none";
+    document.getElementById("statsContent").style.display = "block";
+    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    document.querySelector("[data-tab='details']").classList.add("active");
     updateMapStyles();
     handleVisibility();
 };
@@ -882,6 +1003,13 @@ window.triggerHeatmap = (label) => {
     document.getElementById("clearHeatmap").style.display = "block";
     updateMapStyles();
     handleVisibility();
+    
+    // Show rankings tab if at state or county level
+    const level = viewStack.length;
+    if (level === 2 || level === 3) {
+        document.getElementById("tabContainer").style.display = "flex";
+        showRankings();
+    }
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -896,6 +1024,28 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("closePanel").addEventListener("click", (e) => {
         e.stopPropagation();
         document.getElementById("infoPanel").classList.add("hidden");
+    });
+
+    // Tab switching functionality
+    document.querySelectorAll(".tab-button").forEach(button => {
+        button.addEventListener("click", (e) => {
+            const tab = e.target.dataset.tab;
+            const statsContent = document.getElementById("statsContent");
+            const rankingsContent = document.getElementById("rankingsContent");
+            
+            // Update button states
+            document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+            
+            // Update content visibility
+            if (tab === "details") {
+                statsContent.style.display = "block";
+                rankingsContent.style.display = "none";
+            } else if (tab === "rankings") {
+                statsContent.style.display = "none";
+                rankingsContent.style.display = "block";
+            }
+        });
     });
 
     initStateMap();

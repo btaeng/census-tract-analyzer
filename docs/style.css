@@ -54,15 +54,46 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 #infoPanel.collapsed #statsContent {
   display: none;
 }
+#infoPanel.collapsed #rankingsContent {
+  display: none;
+}
+#infoPanel.collapsed #tabContainer {
+  display: none !important;
+}
 
 #panelHeader {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 5px;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
-#panelHeader button {
+#tabContainer {
+  display: flex;
+  gap: 5px;
+  flex-grow: 1;
+}
+.tab-button {
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px 4px 0 0;
+  color: #666;
+  transition: background 0.2s;
+}
+.tab-button:hover {
+  background: #e0e0e0;
+}
+.tab-button.active {
+  background: white;
+  border-bottom: 1px solid white;
+  color: #333;
+  font-weight: bold;
+}
+#panelHeader button:not(.tab-button) {
   border: none;
   background: none;
   font-size: 18px;
@@ -70,7 +101,7 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
   padding: 2px 6px;
   color: #333;
 }
-#panelHeader button:hover {
+#panelHeader button:not(.tab-button):hover {
   background: rgba(0,0,0,0.1);
   border-radius: 3px;
 }
@@ -79,7 +110,10 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 
 table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
-th { background: #f4f4f4; position: sticky; top: 0; }
+th { background: #f4f4f4; position: sticky; top: 0; cursor: pointer; user-select: none; }
+th:hover { background: #e0e0e0; }
+th.sort-asc::after { content: " ▲"; }
+th.sort-desc::after { content: " ▼"; }
 
 #searchContainer {
   position: absolute;
