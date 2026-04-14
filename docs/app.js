@@ -525,7 +525,15 @@ async function goBack() {
   updateBackButton();
   handleVisibility();
   syncSearchUI();
-  document.getElementById("infoPanel").classList.add("hidden");
+  
+  // Update sidebar with new level's data instead of closing
+  if (target === 'national') {
+    document.getElementById("infoPanel").classList.add("hidden");
+  } else if (target.length === 2) {
+    showDetails(target, 'state');
+  } else if (target.length === 5) {
+    showDetails(target, 'county');
+  }
 }
 
 document.getElementById("backButton").addEventListener("click", goBack);
