@@ -877,4 +877,17 @@ window.triggerHeatmap = (label) => {
     handleVisibility();
 };
 
+document.getElementById("togglePanel").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const panel = document.getElementById("infoPanel");
+    const btn = document.getElementById("togglePanel");
+    panel.classList.toggle("collapsed");
+    btn.textContent = panel.classList.contains("collapsed") ? "+" : "−";
+});
+
+document.getElementById("closePanel").addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.getElementById("infoPanel").classList.add("hidden");
+});
+
 initStateMap();

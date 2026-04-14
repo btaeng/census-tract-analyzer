@@ -40,10 +40,42 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
   overflow-y: auto;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, width 0.3s ease, padding 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 #infoPanel.hidden { transform: translateX(400px); }
-#closePanel { position: absolute; top: 10px; right: 10px; border: none; background: none; font-size: 20px; cursor: pointer; }
+#infoPanel.collapsed {
+  width: 200px;
+  max-height: 50px;
+  padding: 10px;
+  overflow: hidden;
+}
+#infoPanel.collapsed #statsContent {
+  display: none;
+}
+
+#panelHeader {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+#panelHeader button {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  color: #333;
+}
+#panelHeader button:hover {
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+}
+#togglePanel { font-size: 16px; }
+#closePanel { font-size: 20px; }
 
 table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
