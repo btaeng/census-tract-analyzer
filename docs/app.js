@@ -515,18 +515,17 @@ async function goBack() {
     initStateMap();
     map.setView([37.8, -96], 4);
   } else if (target.length === 2) {
-    loadCountyLevel(target);
+    await loadCountyLevel(target);
   } else if (target.length === 5) {
     const stateFips = target.substring(0, 2);
     const coFips = target.substring(2, 5);
-    loadTractLevel(coFips);
+    await loadTractLevel(coFips);
   }
   
   updateBackButton();
   handleVisibility();
   syncSearchUI();
   
-  // Update sidebar with new level's data instead of closing
   if (target === 'national') {
     document.getElementById("infoPanel").classList.add("hidden");
   } else if (target.length === 2) {
