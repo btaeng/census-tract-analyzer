@@ -905,9 +905,9 @@ function sortTable(header) {
         aVal = a.cells[cellIndex].textContent.trim();
         bVal = b.cells[cellIndex].textContent.trim();
         
-        // Try to parse as number
-        const aNum = parseFloat(aVal.replace('%', '').replace(',', ''));
-        const bNum = parseFloat(bVal.replace('%', '').replace(',', ''));
+        // Try to parse as number (remove % and all commas)
+        const aNum = parseFloat(aVal.replace('%', '').replace(/,/g, ''));
+        const bNum = parseFloat(bVal.replace('%', '').replace(/,/g, ''));
         
         if (!isNaN(aNum) && !isNaN(bNum)) {
             return isAsc ? aNum - bNum : bNum - aNum;
