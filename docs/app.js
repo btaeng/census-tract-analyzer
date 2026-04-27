@@ -908,6 +908,8 @@ function sortTable(header) {
         // Try to parse as number (remove % and all commas)
         const aNum = parseFloat(aVal.replace('%', '').replace(/,/g, ''));
         const bNum = parseFloat(bVal.replace('%', '').replace(/,/g, ''));
+        const testing = parseFloat('1,234,567'.replace(/,/g, ''));
+        console.log('Testing number parsing:', testing); // Should log 1234567
         
         if (!isNaN(aNum) && !isNaN(bNum)) {
             return isAsc ? aNum - bNum : bNum - aNum;
