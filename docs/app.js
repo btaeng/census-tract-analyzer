@@ -93,7 +93,7 @@ function getIncomeHeatColor(income) {
     if (!income) return "hsl(0, 0%, 85%)";
     const ratio = currentMaxIncome > 0 ? (income / currentMaxIncome) : 0;
     const lightness = 85 - (ratio * 65);
-    return `hsl(55, 90%, ${lightness}%)`;
+    return `hsl(120, 90%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
