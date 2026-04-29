@@ -998,8 +998,8 @@ function sortTable(header) {
         bVal = b.cells[cellIndex].textContent.trim();
         
         // Try to parse as number (remove % and all commas)
-        const aNum = parseFloat(aVal.replace('%', '').replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace('%', '').replace(/,/g, ''));
+        const aNum = parseFloat(aVal.replace('%', '').replace(/,/g, '').replace('$', ''));
+        const bNum = parseFloat(bVal.replace('%', '').replace(/,/g, '').replace('$', ''));
         
         if (!isNaN(aNum) && !isNaN(bNum)) {
             return isAsc ? aNum - bNum : bNum - aNum;
