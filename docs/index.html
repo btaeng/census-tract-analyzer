@@ -30,6 +30,17 @@
         <datalist id="ethList"></datalist>
         <button id="clearHeatmap" style="display:none; font-size:9px;">Reset to Dominant</button>
       </div>
+      <div class="search-group">
+        <label>
+          <input type="checkbox" id="incomeToggle">
+          Income Mode
+        </label>
+        <select id="incomeTypeSelect" style="display:none;">
+          <option value="median_household_income">Median Household Income</option>
+          <option value="median_family_income">Median Family Income</option>
+          <option value="per_capita_income">Per Capita Income</option>
+        </select>
+      </div>
     </div>
     <button id="backButton" style="display: none;">&larr; Back</button>
     <div id="infoPanel" class="hidden">

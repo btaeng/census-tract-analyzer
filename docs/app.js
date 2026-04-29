@@ -8,7 +8,10 @@ const viewStack = ['national'];
 const dataCache = {
   states: null,
   counties: {},
-  tracts: {}
+  tracts: {},
+  statesIncome: null,
+  countiesIncome: {},
+  tractsIncome: {}
 };
 
 const stateLayer = L.layerGroup().addTo(map);
@@ -22,26 +25,40 @@ const colorCache = {};
 
 let viewMode = 'mce';
 let targetEthnicity = null;
+let incomeMode = false;
+let selectedIncomeType = 'median_household_income';
 
 function getFeatureStyle(feature, level) {
     const props = feature.properties;
     let id;
     let data;
+    let incomeData;
 
     if (level === 1) {
         id = props.STATEFP;
         data = dataCache.states[id];
+        incomeData = dataCache.statesIncome ? dataCache.statesIncome[id] : null;
     } else if (level === 2) {
         id = viewStack[1] + props.COUNTYFP;
         data = dataCache.counties[viewStack[1]] ? dataCache.counties[viewStack[1]][id] : null;
+        incomeData = dataCache.countiesIncome[viewStack[1]] ? dataCache.countiesIncome[viewStack[1]][id] : null;
     } else if (level === 3) {
         id = viewStack[2] + props.TRACTCE;
         data = dataCache.tracts[viewStack[2]] ? dataCache.tracts[viewStack[2]][id] : null;
+        incomeData = dataCache.tractsIncome[viewStack[2]] ? dataCache.tractsIncome[viewStack[2]][id] : null;
     }
 
     if (!data) return { fillOpacity: 0, weight: 0 };
 
-    if (viewMode === 'heatmap' && targetEthnicity) {
+    if (incomeMode && incomeData) {
+        const income = incomeData[selectedIncomeType];
+        return {
+            fillColor: getIncomeHeatColor(income),
+            fillOpacity: 0.85,
+            color: "white",
+            weight: 0.5
+        };
+    } else if (viewMode === 'heatmap' && targetEthnicity) {
         const match = data.details.find(e => e.label === targetEthnicity);
         const pct = match ? match.percent_of_geo : 0;
         return {
@@ -61,6 +78,7 @@ function getFeatureStyle(feature, level) {
 }
 
 let currentMaxPct = 0;
+let currentMaxIncome = 0;
 
 function getHeatColor(label, percentage) {
     const baseColor = getDynamicColor(label);
@@ -69,6 +87,13 @@ function getHeatColor(label, percentage) {
     const lightness = 95 - (ratio * 65); 
     
     return `hsl(${hue}, 85%, ${lightness}%)`;
+}
+
+function getIncomeHeatColor(income) {
+    if (!income) return "hsl(0, 0%, 90%)";
+    const ratio = currentMaxIncome > 0 ? (income / currentMaxIncome) : 0;
+    const lightness = 95 - (ratio * 60);
+    return `hsl(60, 100%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
@@ -555,6 +580,31 @@ async function getCachedData(endpoint, cacheKey, cacheType) {
   return data;
 }
 
+async function getCachedIncomeData(cacheKey, cacheType) {
+  if (cacheType === 'states' && dataCache.statesIncome) return dataCache.statesIncome;
+  if (cacheType === 'counties' && dataCache.countiesIncome[cacheKey]) return dataCache.countiesIncome[cacheKey];
+  if (cacheType === 'tracts' && dataCache.tractsIncome[cacheKey]) return dataCache.tractsIncome[cacheKey];
+
+  let localPath = "";
+  if (cacheType === 'states') localPath = "api/income/states.json";
+  if (cacheType === 'counties') localPath = `api/income/counties/${cacheKey}.json`;
+  if (cacheType === 'tracts') localPath = `api/income/tracts/${cacheKey}.json`;
+
+  try {
+    const resp = await fetch(localPath);
+    const data = await resp.json();
+
+    if (cacheType === 'states') dataCache.statesIncome = data;
+    if (cacheType === 'counties') dataCache.countiesIncome[cacheKey] = data;
+    if (cacheType === 'tracts') dataCache.tractsIncome[cacheKey] = data;
+
+    return data;
+  } catch (e) {
+    console.log("Income data not available for", cacheKey);
+    return {};
+  }
+}
+
 function updateEthnicityList(detailsArray) {
     const list = document.getElementById("ethList");
     const uniqueEthnicities = new Set();
@@ -578,6 +628,7 @@ async function initStateMap() {
     const geoResp = await fetch("static/data/us-states.geojson");
     const statesGeo = await geoResp.json();
     const mceData = await getCachedData("/api/states-mce", null, 'states');
+    await getCachedIncomeData(null, 'states');
     fillDatalist("stateList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -639,6 +690,7 @@ async function loadCountyLevel(stateFips) {
     if (!geoResp.ok) throw new Error("GeoJSON file not found on server");
     const countiesGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
+    await getCachedIncomeData(stateFips, 'counties');
     fillDatalist("countyList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -701,6 +753,7 @@ async function loadTractLevel(coFips) {
     const geoResp = await fetch(`static/data/tracts/${geoid}.geojson`);
     const tractsGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/tracts-mce?county=${coFips}`, coFips, 'tracts');
+    await getCachedIncomeData(coFips, 'tracts');
     fillDatalist("tractList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -761,14 +814,18 @@ function showDetails(geoId, type) {
     const content = document.getElementById("statsContent");
     
     let data;
+    let incomeData;
     if (type === 'state') {
       data = dataCache.states[geoId];
+      incomeData = dataCache.statesIncome ? dataCache.statesIncome[geoId] : null;
     } else if (type === 'county') {
       data = dataCache.counties[viewStack[1]][geoId];
+      incomeData = dataCache.countiesIncome[viewStack[1]] ? dataCache.countiesIncome[viewStack[1]][geoId] : null;
     } else if (type === 'tract') {
         const parentKey = viewStack[2]; 
         if (dataCache.tracts[parentKey]) {
             data = dataCache.tracts[parentKey][geoId];
+            incomeData = dataCache.tractsIncome[parentKey] ? dataCache.tractsIncome[parentKey][geoId] : null;
         }
     }
 
@@ -791,9 +848,28 @@ function showDetails(geoId, type) {
         document.getElementById("tabContainer").style.display = "none";
     }
     
+    let incomeHtml = "";
+    if (incomeData) {
+        const hhi = incomeData.median_household_income ? `$${incomeData.median_household_income.toLocaleString()}` : "N/A";
+        const mfi = incomeData.median_family_income ? `$${incomeData.median_family_income.toLocaleString()}` : "N/A";
+        const pci = incomeData.per_capita_income ? `$${incomeData.per_capita_income.toLocaleString()}` : "N/A";
+        incomeHtml = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 0.95em;">Income Data</h3>
+                <table style="font-size: 0.9em;">
+                    <tr><td><strong>Median Household Income:</strong></td><td>${hhi}</td></tr>
+                    <tr><td><strong>Median Family Income:</strong></td><td>${mfi}</td></tr>
+                    <tr><td><strong>Per Capita Income:</strong></td><td>${pci}</td></tr>
+                </table>
+            </div>
+        `;
+    }
+    
     content.innerHTML = `
         <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
         <p style="margin-top:-10px; color:#666;">Dominant: ${data.mce}</p>
+        ${incomeHtml}
+        <h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 0.95em;">Ethnicity Data</h3>
         <table>
             <thead>
                 <tr><th>Group</th><th>Pop</th><th>% Alone</th></tr>
@@ -1026,6 +1102,65 @@ window.triggerHeatmap = (label) => {
         showRankings();
     }
 };
+
+document.getElementById("incomeToggle").addEventListener("change", async (e) => {
+    incomeMode = e.target.checked;
+    const select = document.getElementById("incomeTypeSelect");
+    select.style.display = incomeMode ? "block" : "none";
+    
+    if (incomeMode) {
+        // Load income data if not already loaded
+        const level = viewStack.length;
+        if (level >= 1) {
+            await getCachedIncomeData(null, 'states');
+        }
+        if (level >= 2) {
+            const stFips = viewStack[1];
+            await getCachedIncomeData(stFips, 'counties');
+        }
+        if (level >= 3) {
+            const coFips = viewStack[2];
+            await getCachedIncomeData(coFips, 'tracts');
+        }
+        
+        // Calculate max income for heatmap scaling
+        updateMaxIncomeValue();
+    }
+    
+    updateMapStyles();
+    handleVisibility();
+});
+
+document.getElementById("incomeTypeSelect").addEventListener("change", (e) => {
+    selectedIncomeType = e.target.value;
+    updateMaxIncomeValue();
+    updateMapStyles();
+    handleVisibility();
+});
+
+function updateMaxIncomeValue() {
+    let max = 0;
+    const level = viewStack.length;
+    
+    if (level === 1 && dataCache.statesIncome) {
+        Object.values(dataCache.statesIncome).forEach(d => {
+            const val = d[selectedIncomeType];
+            if (val && val > max) max = val;
+        });
+    } else if (level === 2 && dataCache.countiesIncome[viewStack[1]]) {
+        Object.values(dataCache.countiesIncome[viewStack[1]]).forEach(d => {
+            const val = d[selectedIncomeType];
+            if (val && val > max) max = val;
+        });
+    } else if (level === 3 && dataCache.tractsIncome[viewStack[2]]) {
+        Object.values(dataCache.tractsIncome[viewStack[2]]).forEach(d => {
+            const val = d[selectedIncomeType];
+            if (val && val > max) max = val;
+        });
+    }
+    
+    currentMaxIncome = max;
+}
 
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("togglePanel").addEventListener("click", (e) => {
