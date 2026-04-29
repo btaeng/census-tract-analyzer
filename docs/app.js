@@ -90,10 +90,10 @@ function getHeatColor(label, percentage) {
 }
 
 function getIncomeHeatColor(income) {
-    if (!income) return "hsl(0, 0%, 90%)";
+    if (!income) return "hsl(0, 0%, 85%)";
     const ratio = currentMaxIncome > 0 ? (income / currentMaxIncome) : 0;
-    const lightness = 95 - (ratio * 60);
-    return `hsl(60, 100%, ${lightness}%)`;
+    const lightness = 85 - (ratio * 65);
+    return `hsl(55, 90%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
@@ -195,7 +195,7 @@ function handleVisibility() {
   const FLAG_THRESHOLD = 5;
   const SHAPE_THRESHOLD = 2;
 
-  if (viewMode === 'heatmap' || zoom < FLAG_THRESHOLD) {
+  if (viewMode === 'heatmap' || incomeMode || zoom < FLAG_THRESHOLD) {
     [stateFlagLayer, countyFlagLayer, tractFlagLayer].forEach(l => map.removeLayer(l));
   } else {
     if (level === 1) { map.addLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); map.removeLayer(tractFlagLayer); }
@@ -1004,15 +1004,20 @@ function updateMapStyles() {
     const level = viewStack.length;
     let activeLayerGroup;
     let dataMap;
+    let incomeDataMap;
+    
     if (level === 1) { 
         activeLayerGroup = stateLayer; 
-        dataMap = dataCache.states; 
+        dataMap = dataCache.states;
+        incomeDataMap = dataCache.statesIncome;
     } else if (level === 2) { 
         activeLayerGroup = countyLayer; 
-        dataMap = dataCache.counties[viewStack[1]]; 
+        dataMap = dataCache.counties[viewStack[1]];
+        incomeDataMap = dataCache.countiesIncome[viewStack[1]];
     } else if (level === 3) { 
         activeLayerGroup = tractLayer; 
-        dataMap = dataCache.tracts[viewStack[2]]; 
+        dataMap = dataCache.tracts[viewStack[2]];
+        incomeDataMap = dataCache.tractsIncome[viewStack[2]];
     }
 
     if (!dataMap) return;
@@ -1025,6 +1030,7 @@ function updateMapStyles() {
         });
         currentMaxPct = max;
     }
+    
     activeLayerGroup.eachLayer(geojson => {
         if (geojson.setStyle) {
             geojson.eachLayer(layer => {
@@ -1039,7 +1045,12 @@ function updateMapStyles() {
                 layer.setStyle(getFeatureStyle(layer.feature, level));
 
                 let tooltipContent = props.NAME || `Tract ${props.TRACTCE}`;
-                if (viewMode === 'heatmap' && targetEthnicity) {
+                if (incomeMode && incomeDataMap && incomeDataMap[id]) {
+                    const income = incomeDataMap[id][selectedIncomeType];
+                    const label = selectedIncomeType === 'median_household_income' ? 'HH Income' : 
+                                  selectedIncomeType === 'median_family_income' ? 'Family Income' : 'Per Capita';
+                    tooltipContent += income ? `: $${income.toLocaleString()}` : `: N/A`;
+                } else if (viewMode === 'heatmap' && targetEthnicity) {
                     const match = data.details.find(e => e.label === targetEthnicity);
                     const pct = match ? match.percent_of_geo : 0;
                     tooltipContent += `: ${pct}%`;
