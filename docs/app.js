@@ -839,12 +839,28 @@ function showDetails(geoId, type) {
     // Reset to details tab
     document.getElementById("statsContent").style.display = "block";
     document.getElementById("rankingsContent").style.display = "none";
+    document.getElementById("incomeRankingsContent").style.display = "none";
     document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
     document.querySelector("[data-tab='details']").classList.add("active");
     
-    // Hide tabs if not in heatmap mode or not at state/county level
+    // Show tabs if appropriate
     const level = viewStack.length;
-    if (viewMode !== 'heatmap' || (level !== 2 && level !== 3)) {
+    const ethRankingsTab = document.getElementById("ethRankingsTab");
+    const incomeRankingsTab = document.getElementById("incomeRankingsTab");
+    
+    if (level === 2 || level === 3) {
+        if (incomeMode) {
+            document.getElementById("tabContainer").style.display = "flex";
+            ethRankingsTab.style.display = "none";
+            incomeRankingsTab.style.display = "block";
+        } else if (viewMode === 'heatmap' && targetEthnicity) {
+            document.getElementById("tabContainer").style.display = "flex";
+            ethRankingsTab.style.display = "block";
+            incomeRankingsTab.style.display = "none";
+        } else {
+            document.getElementById("tabContainer").style.display = "none";
+        }
+    } else {
         document.getElementById("tabContainer").style.display = "none";
     }
     
@@ -1000,6 +1016,61 @@ function sortTable(header) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+function showIncomeRankings() {
+    const level = viewStack.length;
+    if (level !== 2 && level !== 3) return; // Only show rankings at state/county level
+    
+    const incomeRankingsContent = document.getElementById("incomeRankingsContent");
+    let incomeDataMap;
+    
+    if (level === 2) {
+        incomeDataMap = dataCache.countiesIncome[viewStack[1]];
+    } else if (level === 3) {
+        incomeDataMap = dataCache.tractsIncome[viewStack[2]];
+    }
+    
+    if (!incomeDataMap) return;
+    
+    // Get label for selected income type
+    const incomeLabel = selectedIncomeType === 'median_household_income' ? 'Median Household Income' : 
+                        selectedIncomeType === 'median_family_income' ? 'Median Family Income' : 'Per Capita Income';
+    
+    // Build array of geographies with sorted income values
+    const rankings = Object.entries(incomeDataMap).map(([id, data]) => {
+        return {
+            id: id,
+            name: data.name,
+            income: data[selectedIncomeType] || 0
+        };
+    }).filter(r => r.income > 0).sort((a, b) => b.income - a.income);
+    
+    incomeRankingsContent.innerHTML = `
+        <h3 style="margin-top:0; font-size:1.1em;">${incomeLabel}</h3>
+        <p style="margin-top:-10px; color:#666;">Ranked by income</p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="sort-col" data-col="name">Geography</th>
+                    <th class="sort-col" data-col="income">Income</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rankings.map(r => `
+                    <tr>
+                        <td class="clickable-geog" onclick="zoomToGeography('${r.id}', ${level})" style="cursor:pointer; color:blue; text-decoration:underline;">${r.name}</td>
+                        <td>$${r.income.toLocaleString()}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    // Attach sort handlers
+    incomeRankingsContent.querySelectorAll('.sort-col').forEach(th => {
+        th.addEventListener('click', (e) => sortTable(e.target));
+    });
+}
+
 function updateMapStyles() {
     const level = viewStack.length;
     let activeLayerGroup;
@@ -1071,6 +1142,9 @@ document.getElementById("ethSearch").addEventListener("input", (e) => {
     if (exists) {
         targetEthnicity = val;
         viewMode = 'heatmap';
+        incomeMode = false;
+        document.getElementById("incomeToggle").checked = false;
+        document.getElementById("incomeTypeSelect").style.display = "none";
         document.getElementById("clearHeatmap").style.display = "block";
         updateMapStyles();
         handleVisibility();
@@ -1079,6 +1153,8 @@ document.getElementById("ethSearch").addEventListener("input", (e) => {
         const level = viewStack.length;
         if (level === 2 || level === 3) {
             document.getElementById("tabContainer").style.display = "flex";
+            document.getElementById("ethRankingsTab").style.display = "block";
+            document.getElementById("incomeRankingsTab").style.display = "none";
             showRankings();
         }
     }
@@ -1089,7 +1165,10 @@ document.getElementById("clearHeatmap").onclick = () => {
     targetEthnicity = null;
     document.getElementById("ethSearch").value = "";
     document.getElementById("clearHeatmap").style.display = "none";
-    document.getElementById("tabContainer").style.display = "none";
+    document.getElementById("incomeRankingsContent").style.display = "none";
+    if (!incomeMode) {
+        document.getElementById("tabContainer").style.display = "none";
+    }
     document.getElementById("rankingsContent").style.display = "none";
     document.getElementById("statsContent").style.display = "block";
     document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
@@ -1102,6 +1181,9 @@ window.triggerHeatmap = (label) => {
     document.getElementById("ethSearch").value = label;
     targetEthnicity = label;
     viewMode = 'heatmap';
+    incomeMode = false;
+    document.getElementById("incomeToggle").checked = false;
+    document.getElementById("incomeTypeSelect").style.display = "none";
     document.getElementById("clearHeatmap").style.display = "block";
     updateMapStyles();
     handleVisibility();
@@ -1110,6 +1192,8 @@ window.triggerHeatmap = (label) => {
     const level = viewStack.length;
     if (level === 2 || level === 3) {
         document.getElementById("tabContainer").style.display = "flex";
+        document.getElementById("ethRankingsTab").style.display = "block";
+        document.getElementById("incomeRankingsTab").style.display = "none";
         showRankings();
     }
 };
@@ -1136,6 +1220,14 @@ document.getElementById("incomeToggle").addEventListener("change", async (e) => 
         
         // Calculate max income for heatmap scaling
         updateMaxIncomeValue();
+        
+        // Show income rankings if at appropriate level
+        if (level === 2 || level === 3) {
+            document.getElementById("incomeRankingsTab").style.display = "block";
+            document.getElementById("ethRankingsTab").style.display = "none";
+            document.getElementById("tabContainer").style.display = "flex";
+            showIncomeRankings();
+        }
     }
     
     updateMapStyles();
@@ -1147,6 +1239,12 @@ document.getElementById("incomeTypeSelect").addEventListener("change", (e) => {
     updateMaxIncomeValue();
     updateMapStyles();
     handleVisibility();
+    
+    // Update income rankings if visible
+    const level = viewStack.length;
+    if ((level === 2 || level === 3) && document.getElementById("incomeRankingsContent").style.display !== "none") {
+        showIncomeRankings();
+    }
 });
 
 function updateMaxIncomeValue() {
@@ -1193,6 +1291,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const tab = e.target.dataset.tab;
             const statsContent = document.getElementById("statsContent");
             const rankingsContent = document.getElementById("rankingsContent");
+            const incomeRankingsContent = document.getElementById("incomeRankingsContent");
             
             // Update button states
             document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
@@ -1202,9 +1301,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tab === "details") {
                 statsContent.style.display = "block";
                 rankingsContent.style.display = "none";
+                incomeRankingsContent.style.display = "none";
             } else if (tab === "rankings") {
                 statsContent.style.display = "none";
                 rankingsContent.style.display = "block";
+                incomeRankingsContent.style.display = "none";
+            } else if (tab === "incomeRankings") {
+                statsContent.style.display = "none";
+                rankingsContent.style.display = "none";
+                incomeRankingsContent.style.display = "block";
             }
         });
     });

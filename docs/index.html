@@ -47,13 +47,15 @@
       <div id="panelHeader">
         <div id="tabContainer" style="display: none;">
           <button class="tab-button active" data-tab="details">Details</button>
-          <button class="tab-button" data-tab="rankings">Rankings</button>
+          <button class="tab-button" data-tab="rankings" id="ethRankingsTab">Rankings</button>
+          <button class="tab-button" data-tab="incomeRankings" id="incomeRankingsTab" style="display:none;">Income Rankings</button>
         </div>
         <button id="togglePanel" title="Collapse/Expand">&minus;</button>
         <button id="closePanel" title="Close">&times;</button>
       </div>
       <div id="statsContent"></div>
       <div id="rankingsContent" style="display: none;"></div>
+      <div id="incomeRankingsContent" style="display: none;"></div>
     </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
