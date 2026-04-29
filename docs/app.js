@@ -881,14 +881,18 @@ function showDetails(geoId, type) {
         `;
     }
     
+    // Calculate total population
+    const totalPopulation = data.details.reduce((sum, e) => sum + (e.pop || 0), 0);
+    
     content.innerHTML = `
         <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
         <p style="margin-top:-10px; color:#666;">Dominant: ${data.mce}</p>
+        <p style="margin-top:-5px; color:#666;">Total Population: ${totalPopulation.toLocaleString()}</p>
         ${incomeHtml}
         <h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 0.95em;">Ethnicity Data</h3>
         <table>
             <thead>
-                <tr><th>Group</th><th>Pop</th><th>% Alone</th></tr>
+                <tr><th>Group</th><th>Pop</th><th>% Alone</th><th>% of Geo</th></tr>
             </thead>
             <tbody>
                 ${data.details.map(e => `
@@ -896,6 +900,7 @@ function showDetails(geoId, type) {
                         <td class="clickable-eth" onclick="triggerHeatmap('${e.label}')" style="cursor:pointer; color:blue; text-decoration:underline;">${e.label}</td>
                         <td>${e.pop.toLocaleString()}</td>
                         <td>${e.percent_alone}%</td>
+                        <td>${totalPopulation > 0 ? ((e.pop / totalPopulation) * 100).toFixed(1) : 'N/A'}%</td>
                     </tr>
                 `).join('')}
             </tbody>
