@@ -881,8 +881,7 @@ function showDetails(geoId, type) {
         `;
     }
     
-    // Calculate total population
-    const totalPopulation = data.details.reduce((sum, e) => sum + (e.pop || 0), 0);
+    const totalPopulation = data.total_geo_pop || 0;
     
     content.innerHTML = `
         <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
