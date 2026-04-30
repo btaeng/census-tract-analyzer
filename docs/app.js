@@ -946,6 +946,7 @@ function showRankings() {
             id: id,
             name: data.name,
             percentage: match ? match.percent_of_geo : 0,
+            percent_alone: match ? match.percent_alone : 0,
             population: match ? match.pop : 0
         };
     }).sort((a, b) => b.percentage - a.percentage);
@@ -957,7 +958,8 @@ function showRankings() {
             <thead>
                 <tr>
                     <th class="sort-col" data-col="name">Geography</th>
-                    <th class="sort-col" data-col="percentage">%</th>
+                    <th class="sort-col" data-col="percentage">% of Geo</th>
+                    <th class="sort-col" data-col="percent_alone">% Alone</th>
                     <th class="sort-col" data-col="population">Pop</th>
                 </tr>
             </thead>
@@ -966,6 +968,7 @@ function showRankings() {
                     <tr>
                         <td class="clickable-geog" onclick="zoomToGeography('${r.id}', ${level})" style="cursor:pointer; color:blue; text-decoration:underline;">${r.name}</td>
                         <td>${r.percentage}%</td>
+                        <td>${r.percent_alone}%</td>
                         <td>${r.population.toLocaleString()}</td>
                     </tr>
                 `).join('')}
