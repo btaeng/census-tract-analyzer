@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 CENSUS_KEY = os.getenv("CENSUS_API_KEY") or ""
 
-ACS_URL = "https://api.census.gov/data/2022/acs/acs5/subject"
+ACS_URL = "https://api.census.gov/data/2020/acs/acs5/subject"
 DB_PATH = "census_income_data.db"
 GEOGRAPHIES_DB_PATH = "census_data.db"
 
