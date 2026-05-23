@@ -41,6 +41,32 @@
           <option value="per_capita_income">Per Capita Income</option>
         </select>
       </div>
+      <div class="search-group">
+        <label>
+          <input type="checkbox" id="ageToggle">
+          Age Mode
+        </label>
+        <select id="ageGroupSelect" style="display:none;">
+          <option value="under_5">Under 5</option>
+          <option value="age_5_9">5-9</option>
+          <option value="age_10_14">10-14</option>
+          <option value="age_15_19">15-19</option>
+          <option value="age_20_24">20-24</option>
+          <option value="age_25_29">25-29</option>
+          <option value="age_30_34">30-34</option>
+          <option value="age_35_39">35-39</option>
+          <option value="age_40_44">40-44</option>
+          <option value="age_45_49">45-49</option>
+          <option value="age_50_54">50-54</option>
+          <option value="age_55_59">55-59</option>
+          <option value="age_60_64">60-64</option>
+          <option value="age_65_69">65-69</option>
+          <option value="age_70_74">70-74</option>
+          <option value="age_75_79">75-79</option>
+          <option value="age_80_84">80-84</option>
+          <option value="age_85_plus">85+</option>
+        </select>
+      </div>
     </div>
     <button id="backButton" style="display: none;">&larr; Back</button>
     <div id="infoPanel" class="hidden">
@@ -49,6 +75,7 @@
           <button class="tab-button active" data-tab="details">Details</button>
           <button class="tab-button" data-tab="rankings" id="ethRankingsTab">Rankings</button>
           <button class="tab-button" data-tab="incomeRankings" id="incomeRankingsTab" style="display:none;">Income Rankings</button>
+          <button class="tab-button" data-tab="ageRankings" id="ageRankingsTab" style="display:none;">Age Rankings</button>
         </div>
         <button id="togglePanel" title="Collapse/Expand">&minus;</button>
         <button id="closePanel" title="Close">&times;</button>
@@ -56,6 +83,7 @@
       <div id="statsContent"></div>
       <div id="rankingsContent" style="display: none;"></div>
       <div id="incomeRankingsContent" style="display: none;"></div>
+      <div id="ageRankingsContent" style="display: none;"></div>
     </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>

@@ -11,7 +11,10 @@ const dataCache = {
   tracts: {},
   statesIncome: null,
   countiesIncome: {},
-  tractsIncome: {}
+  tractsIncome: {},
+  statesAge: null,
+  countiesAge: {},
+  tractsAge: {}
 };
 
 const stateLayer = L.layerGroup().addTo(map);
@@ -27,30 +30,46 @@ let viewMode = 'mce';
 let targetEthnicity = null;
 let incomeMode = false;
 let selectedIncomeType = 'median_household_income';
+let ageMode = false;
+let selectedAgeGroup = 'under_5';
 
 function getFeatureStyle(feature, level) {
     const props = feature.properties;
     let id;
     let data;
     let incomeData;
+    let ageData;
 
     if (level === 1) {
         id = props.STATEFP;
         data = dataCache.states[id];
         incomeData = dataCache.statesIncome ? dataCache.statesIncome[id] : null;
+        ageData = dataCache.statesAge ? dataCache.statesAge[id] : null;
     } else if (level === 2) {
         id = viewStack[1] + props.COUNTYFP;
         data = dataCache.counties[viewStack[1]] ? dataCache.counties[viewStack[1]][id] : null;
         incomeData = dataCache.countiesIncome[viewStack[1]] ? dataCache.countiesIncome[viewStack[1]][id] : null;
+        ageData = dataCache.countiesAge[viewStack[1]] ? dataCache.countiesAge[viewStack[1]][id] : null;
     } else if (level === 3) {
         id = viewStack[2] + props.TRACTCE;
         data = dataCache.tracts[viewStack[2]] ? dataCache.tracts[viewStack[2]][id] : null;
         incomeData = dataCache.tractsIncome[viewStack[2]] ? dataCache.tractsIncome[viewStack[2]][id] : null;
+        ageData = dataCache.tractsAge[viewStack[2]] ? dataCache.tractsAge[viewStack[2]][id] : null;
     }
 
     if (!data) return { fillOpacity: 0, weight: 0 };
 
-    if (incomeMode && incomeData) {
+    if (ageMode && ageData) {
+        const ageCount = ageData[selectedAgeGroup];
+        const totalPop = data.total_geo_pop || 1;
+        const percentage = totalPop > 0 ? (ageCount / totalPop) * 100 : 0;
+        return {
+            fillColor: getAgeHeatColor(percentage),
+            fillOpacity: 0.85,
+            color: "white",
+            weight: 0.5
+        };
+    } else if (incomeMode && incomeData) {
         const income = incomeData[selectedIncomeType];
         return {
             fillColor: getIncomeHeatColor(income),
@@ -94,6 +113,13 @@ function getIncomeHeatColor(income) {
     const ratio = currentMaxIncome > 0 ? (income / currentMaxIncome) : 0;
     const lightness = 85 - (ratio * 65);
     return `hsl(120, 90%, ${lightness}%)`;
+}
+
+function getAgeHeatColor(percentage) {
+    if (!percentage || percentage === 0) return "hsl(0, 0%, 85%)";
+    const ratio = percentage > 100 ? 1 : percentage / 100;
+    const lightness = 85 - (ratio * 65);
+    return `hsl(300, 90%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
@@ -195,7 +221,7 @@ function handleVisibility() {
   const FLAG_THRESHOLD = 5;
   const SHAPE_THRESHOLD = 2;
 
-  if (viewMode === 'heatmap' || incomeMode || zoom < FLAG_THRESHOLD) {
+  if (viewMode === 'heatmap' || incomeMode || ageMode || zoom < FLAG_THRESHOLD) {
     [stateFlagLayer, countyFlagLayer, tractFlagLayer].forEach(l => map.removeLayer(l));
   } else {
     if (level === 1) { map.addLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); map.removeLayer(tractFlagLayer); }
@@ -605,6 +631,31 @@ async function getCachedIncomeData(cacheKey, cacheType) {
   }
 }
 
+async function getCachedAgeData(cacheKey, cacheType) {
+  if (cacheType === 'states' && dataCache.statesAge) return dataCache.statesAge;
+  if (cacheType === 'counties' && dataCache.countiesAge[cacheKey]) return dataCache.countiesAge[cacheKey];
+  if (cacheType === 'tracts' && dataCache.tractsAge[cacheKey]) return dataCache.tractsAge[cacheKey];
+
+  let localPath = "";
+  if (cacheType === 'states') localPath = "api/age/states.json";
+  if (cacheType === 'counties') localPath = `api/age/counties/${cacheKey}.json`;
+  if (cacheType === 'tracts') localPath = `api/age/tracts/${cacheKey}.json`;
+
+  try {
+    const resp = await fetch(localPath);
+    const data = await resp.json();
+
+    if (cacheType === 'states') dataCache.statesAge = data;
+    if (cacheType === 'counties') dataCache.countiesAge[cacheKey] = data;
+    if (cacheType === 'tracts') dataCache.tractsAge[cacheKey] = data;
+
+    return data;
+  } catch (e) {
+    console.log("Age data not available for", cacheKey);
+    return {};
+  }
+}
+
 function updateEthnicityList(detailsArray) {
     const list = document.getElementById("ethList");
     const uniqueEthnicities = new Set();
@@ -629,6 +680,7 @@ async function initStateMap() {
     const statesGeo = await geoResp.json();
     const mceData = await getCachedData("/api/states-mce", null, 'states');
     await getCachedIncomeData(null, 'states');
+    await getCachedAgeData(null, 'states');
     fillDatalist("stateList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -691,6 +743,7 @@ async function loadCountyLevel(stateFips) {
     const countiesGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/counties-mce?state=${stateFips}`, stateFips, 'counties');
     await getCachedIncomeData(stateFips, 'counties');
+    await getCachedAgeData(stateFips, 'counties');
     fillDatalist("countyList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -754,6 +807,7 @@ async function loadTractLevel(coFips) {
     const tractsGeo = await geoResp.json();
     const mceData = await getCachedData(`/api/tracts-mce?county=${coFips}`, coFips, 'tracts');
     await getCachedIncomeData(coFips, 'tracts');
+    await getCachedAgeData(coFips, 'tracts');
     fillDatalist("tractList", mceData);
     updateEthnicityList(Object.values(mceData));
 
@@ -815,17 +869,21 @@ function showDetails(geoId, type) {
     
     let data;
     let incomeData;
+    let ageData;
     if (type === 'state') {
       data = dataCache.states[geoId];
       incomeData = dataCache.statesIncome ? dataCache.statesIncome[geoId] : null;
+      ageData = dataCache.statesAge ? dataCache.statesAge[geoId] : null;
     } else if (type === 'county') {
       data = dataCache.counties[viewStack[1]][geoId];
       incomeData = dataCache.countiesIncome[viewStack[1]] ? dataCache.countiesIncome[viewStack[1]][geoId] : null;
+      ageData = dataCache.countiesAge[viewStack[1]] ? dataCache.countiesAge[viewStack[1]][geoId] : null;
     } else if (type === 'tract') {
         const parentKey = viewStack[2]; 
         if (dataCache.tracts[parentKey]) {
             data = dataCache.tracts[parentKey][geoId];
             incomeData = dataCache.tractsIncome[parentKey] ? dataCache.tractsIncome[parentKey][geoId] : null;
+            ageData = dataCache.tractsAge[parentKey] ? dataCache.tractsAge[parentKey][geoId] : null;
         }
     }
 
@@ -840,6 +898,7 @@ function showDetails(geoId, type) {
     document.getElementById("statsContent").style.display = "block";
     document.getElementById("rankingsContent").style.display = "none";
     document.getElementById("incomeRankingsContent").style.display = "none";
+    document.getElementById("ageRankingsContent").style.display = "none";
     document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
     document.querySelector("[data-tab='details']").classList.add("active");
     
@@ -847,21 +906,74 @@ function showDetails(geoId, type) {
     const level = viewStack.length;
     const ethRankingsTab = document.getElementById("ethRankingsTab");
     const incomeRankingsTab = document.getElementById("incomeRankingsTab");
+    const ageRankingsTab = document.getElementById("ageRankingsTab");
     
     if (level === 2 || level === 3) {
-        if (incomeMode) {
+        if (ageMode) {
+            document.getElementById("tabContainer").style.display = "flex";
+            ethRankingsTab.style.display = "none";
+            incomeRankingsTab.style.display = "none";
+            ageRankingsTab.style.display = "block";
+        } else if (incomeMode) {
             document.getElementById("tabContainer").style.display = "flex";
             ethRankingsTab.style.display = "none";
             incomeRankingsTab.style.display = "block";
+            ageRankingsTab.style.display = "none";
         } else if (viewMode === 'heatmap' && targetEthnicity) {
             document.getElementById("tabContainer").style.display = "flex";
             ethRankingsTab.style.display = "block";
             incomeRankingsTab.style.display = "none";
+            ageRankingsTab.style.display = "none";
         } else {
             document.getElementById("tabContainer").style.display = "none";
         }
     } else {
         document.getElementById("tabContainer").style.display = "none";
+    }
+    
+    const ageGroupLabels = {
+        "under_5": "Under 5",
+        "age_5_9": "5-9",
+        "age_10_14": "10-14",
+        "age_15_19": "15-19",
+        "age_20_24": "20-24",
+        "age_25_29": "25-29",
+        "age_30_34": "30-34",
+        "age_35_39": "35-39",
+        "age_40_44": "40-44",
+        "age_45_49": "45-49",
+        "age_50_54": "50-54",
+        "age_55_59": "55-59",
+        "age_60_64": "60-64",
+        "age_65_69": "65-69",
+        "age_70_74": "70-74",
+        "age_75_79": "75-79",
+        "age_80_84": "80-84",
+        "age_85_plus": "85+"
+    };
+    
+    let ageHtml = "";
+    if (ageData) {
+        const totalPopulation = data.total_geo_pop || 1;
+        const ageTableRows = Object.entries(ageGroupLabels).map(([key, label]) => {
+            const count = ageData[key] || 0;
+            const percentage = totalPopulation > 0 ? ((count / totalPopulation) * 100).toFixed(1) : 'N/A';
+            return `<tr><td>${label}</td><td>${count.toLocaleString()}</td><td>${percentage}%</td></tr>`;
+        }).join('');
+        
+        ageHtml = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 0.95em;">Age Data</h3>
+                <table style="font-size: 0.9em;">
+                    <thead>
+                        <tr><th>Age Group</th><th>Population</th><th>% of Geo</th></tr>
+                    </thead>
+                    <tbody>
+                        ${ageTableRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
     
     let incomeHtml = "";
@@ -887,6 +999,7 @@ function showDetails(geoId, type) {
         <h2 style="margin-top:0; font-size:1.2em;">${data.name}</h2>
         <p style="margin-top:-10px; color:#666;">Dominant: ${data.mce}</p>
         <p style="margin-top:-5px; color:#666;">Total Population: ${totalPopulation.toLocaleString()}</p>
+        ${ageHtml}
         ${incomeHtml}
         <h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 0.95em;">Ethnicity Data</h3>
         <table>
@@ -1078,6 +1191,90 @@ function showIncomeRankings() {
     });
 }
 
+function showAgeRankings() {
+    const level = viewStack.length;
+    if (level !== 2 && level !== 3) return; // Only show rankings at county/tract level
+    
+    const ageRankingsContent = document.getElementById("ageRankingsContent");
+    let ageDataMap;
+    let dataMap;
+    
+    if (level === 2) {
+        ageDataMap = dataCache.countiesAge[viewStack[1]];
+        dataMap = dataCache.counties[viewStack[1]];
+    } else if (level === 3) {
+        ageDataMap = dataCache.tractsAge[viewStack[2]];
+        dataMap = dataCache.tracts[viewStack[2]];
+    }
+    
+    if (!ageDataMap || !dataMap) return;
+    
+    const ageGroupLabels = {
+        "under_5": "Under 5",
+        "age_5_9": "5-9",
+        "age_10_14": "10-14",
+        "age_15_19": "15-19",
+        "age_20_24": "20-24",
+        "age_25_29": "25-29",
+        "age_30_34": "30-34",
+        "age_35_39": "35-39",
+        "age_40_44": "40-44",
+        "age_45_49": "45-49",
+        "age_50_54": "50-54",
+        "age_55_59": "55-59",
+        "age_60_64": "60-64",
+        "age_65_69": "65-69",
+        "age_70_74": "70-74",
+        "age_75_79": "75-79",
+        "age_80_84": "80-84",
+        "age_85_plus": "85+"
+    };
+    
+    const ageLabel = ageGroupLabels[selectedAgeGroup] || selectedAgeGroup;
+    
+    // Build array of geographies with sorted age counts
+    const rankings = Object.entries(ageDataMap).map(([id, ageData]) => {
+        const geoData = dataMap[id];
+        const count = ageData[selectedAgeGroup] || 0;
+        const totalPop = geoData.total_geo_pop || 1;
+        const percentage = totalPop > 0 ? ((count / totalPop) * 100).toFixed(1) : 0;
+        return {
+            id: id,
+            name: geoData.name,
+            count: count,
+            percentage: percentage
+        };
+    }).filter(r => r.count > 0).sort((a, b) => b.count - a.count);
+    
+    ageRankingsContent.innerHTML = `
+        <h3 style="margin-top:0; font-size:1.1em;">${ageLabel}</h3>
+        <p style="margin-top:-10px; color:#666;">Ranked by population</p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="sort-col" data-col="name">Geography</th>
+                    <th class="sort-col" data-col="count">Count</th>
+                    <th class="sort-col" data-col="percentage">% of Geo</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rankings.map(r => `
+                    <tr>
+                        <td class="clickable-geog" onclick="zoomToGeography('${r.id}', ${level})" style="cursor:pointer; color:blue; text-decoration:underline;">${r.name}</td>
+                        <td>${r.count.toLocaleString()}</td>
+                        <td>${r.percentage}%</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    // Attach sort handlers
+    ageRankingsContent.querySelectorAll('.sort-col').forEach(th => {
+        th.addEventListener('click', (e) => sortTable(e.target));
+    });
+}
+
 function updateMapStyles() {
     const level = viewStack.length;
     let activeLayerGroup;
@@ -1150,8 +1347,11 @@ document.getElementById("ethSearch").addEventListener("input", (e) => {
         targetEthnicity = val;
         viewMode = 'heatmap';
         incomeMode = false;
+        ageMode = false;
         document.getElementById("incomeToggle").checked = false;
         document.getElementById("incomeTypeSelect").style.display = "none";
+        document.getElementById("ageToggle").checked = false;
+        document.getElementById("ageGroupSelect").style.display = "none";
         document.getElementById("clearHeatmap").style.display = "block";
         updateMapStyles();
         handleVisibility();
@@ -1162,6 +1362,7 @@ document.getElementById("ethSearch").addEventListener("input", (e) => {
             document.getElementById("tabContainer").style.display = "flex";
             document.getElementById("ethRankingsTab").style.display = "block";
             document.getElementById("incomeRankingsTab").style.display = "none";
+            document.getElementById("ageRankingsTab").style.display = "none";
             showRankings();
         }
     }
@@ -1173,7 +1374,8 @@ document.getElementById("clearHeatmap").onclick = () => {
     document.getElementById("ethSearch").value = "";
     document.getElementById("clearHeatmap").style.display = "none";
     document.getElementById("incomeRankingsContent").style.display = "none";
-    if (!incomeMode) {
+    document.getElementById("ageRankingsContent").style.display = "none";
+    if (!incomeMode && !ageMode) {
         document.getElementById("tabContainer").style.display = "none";
     }
     document.getElementById("rankingsContent").style.display = "none";
@@ -1189,8 +1391,11 @@ window.triggerHeatmap = (label) => {
     targetEthnicity = label;
     viewMode = 'heatmap';
     incomeMode = false;
+    ageMode = false;
     document.getElementById("incomeToggle").checked = false;
     document.getElementById("incomeTypeSelect").style.display = "none";
+    document.getElementById("ageToggle").checked = false;
+    document.getElementById("ageGroupSelect").style.display = "none";
     document.getElementById("clearHeatmap").style.display = "block";
     updateMapStyles();
     handleVisibility();
@@ -1201,6 +1406,7 @@ window.triggerHeatmap = (label) => {
         document.getElementById("tabContainer").style.display = "flex";
         document.getElementById("ethRankingsTab").style.display = "block";
         document.getElementById("incomeRankingsTab").style.display = "none";
+        document.getElementById("ageRankingsTab").style.display = "none";
         showRankings();
     }
 };
@@ -1211,6 +1417,13 @@ document.getElementById("incomeToggle").addEventListener("change", async (e) => 
     select.style.display = incomeMode ? "block" : "none";
     
     if (incomeMode) {
+        // Disable other modes
+        ageMode = false;
+        viewMode = 'mce';
+        document.getElementById("ageToggle").checked = false;
+        document.getElementById("ageGroupSelect").style.display = "none";
+        document.getElementById("ethSearch").value = "";
+        
         // Load income data if not already loaded
         const level = viewStack.length;
         if (level >= 1) {
@@ -1251,6 +1464,59 @@ document.getElementById("incomeTypeSelect").addEventListener("change", (e) => {
     const level = viewStack.length;
     if ((level === 2 || level === 3) && document.getElementById("incomeRankingsContent").style.display !== "none") {
         showIncomeRankings();
+    }
+});
+
+document.getElementById("ageToggle").addEventListener("change", async (e) => {
+    ageMode = e.target.checked;
+    const select = document.getElementById("ageGroupSelect");
+    select.style.display = ageMode ? "block" : "none";
+    
+    if (ageMode) {
+        // Disable other modes
+        incomeMode = false;
+        viewMode = 'mce';
+        document.getElementById("incomeToggle").checked = false;
+        document.getElementById("incomeTypeSelect").style.display = "none";
+        document.getElementById("ethSearch").value = "";
+        
+        // Load age data if not already loaded
+        const level = viewStack.length;
+        if (level >= 1) {
+            await getCachedAgeData(null, 'states');
+        }
+        if (level >= 2) {
+            const stFips = viewStack[1];
+            await getCachedAgeData(stFips, 'counties');
+        }
+        if (level >= 3) {
+            const coFips = viewStack[2];
+            await getCachedAgeData(coFips, 'tracts');
+        }
+        
+        // Show age rankings if at appropriate level
+        if (level === 2 || level === 3) {
+            document.getElementById("ageRankingsTab").style.display = "block";
+            document.getElementById("ethRankingsTab").style.display = "none";
+            document.getElementById("incomeRankingsTab").style.display = "none";
+            document.getElementById("tabContainer").style.display = "flex";
+            showAgeRankings();
+        }
+    }
+    
+    updateMapStyles();
+    handleVisibility();
+});
+
+document.getElementById("ageGroupSelect").addEventListener("change", (e) => {
+    selectedAgeGroup = e.target.value;
+    updateMapStyles();
+    handleVisibility();
+    
+    // Update age rankings if visible
+    const level = viewStack.length;
+    if ((level === 2 || level === 3) && document.getElementById("ageRankingsContent").style.display !== "none") {
+        showAgeRankings();
     }
 });
 
