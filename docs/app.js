@@ -1280,19 +1280,23 @@ function updateMapStyles() {
     let activeLayerGroup;
     let dataMap;
     let incomeDataMap;
+    let ageDataMap;
     
     if (level === 1) { 
         activeLayerGroup = stateLayer; 
         dataMap = dataCache.states;
         incomeDataMap = dataCache.statesIncome;
+        ageDataMap = dataCache.statesAge;
     } else if (level === 2) { 
         activeLayerGroup = countyLayer; 
         dataMap = dataCache.counties[viewStack[1]];
         incomeDataMap = dataCache.countiesIncome[viewStack[1]];
+        ageDataMap = dataCache.countiesAge[viewStack[1]];
     } else if (level === 3) { 
         activeLayerGroup = tractLayer; 
         dataMap = dataCache.tracts[viewStack[2]];
         incomeDataMap = dataCache.tractsIncome[viewStack[2]];
+        ageDataMap = dataCache.tractsAge[viewStack[2]];
     }
 
     if (!dataMap) return;
@@ -1320,7 +1324,33 @@ function updateMapStyles() {
                 layer.setStyle(getFeatureStyle(layer.feature, level));
 
                 let tooltipContent = props.NAME || `Tract ${props.TRACTCE}`;
-                if (incomeMode && incomeDataMap && incomeDataMap[id]) {
+                if (ageMode && ageDataMap && ageDataMap[id]) {
+                    const ageGroupLabels = {
+                        "under_5": "Under 5",
+                        "age_5_9": "5-9",
+                        "age_10_14": "10-14",
+                        "age_15_19": "15-19",
+                        "age_20_24": "20-24",
+                        "age_25_29": "25-29",
+                        "age_30_34": "30-34",
+                        "age_35_39": "35-39",
+                        "age_40_44": "40-44",
+                        "age_45_49": "45-49",
+                        "age_50_54": "50-54",
+                        "age_55_59": "55-59",
+                        "age_60_64": "60-64",
+                        "age_65_69": "65-69",
+                        "age_70_74": "70-74",
+                        "age_75_79": "75-79",
+                        "age_80_84": "80-84",
+                        "age_85_plus": "85+"
+                    };
+                    const ageLabel = ageGroupLabels[selectedAgeGroup] || selectedAgeGroup;
+                    const count = ageDataMap[id][selectedAgeGroup] || 0;
+                    const totalPop = data.total_geo_pop || 1;
+                    const percentage = totalPop > 0 ? ((count / totalPop) * 100).toFixed(1) : 0;
+                    tooltipContent += `: ${ageLabel} ${percentage}%`;
+                } else if (incomeMode && incomeDataMap && incomeDataMap[id]) {
                     const income = incomeDataMap[id][selectedIncomeType];
                     const label = selectedIncomeType === 'median_household_income' ? 'HH Income' : 
                                   selectedIncomeType === 'median_family_income' ? 'Family Income' : 'Per Capita';
