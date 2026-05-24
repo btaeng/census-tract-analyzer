@@ -1618,6 +1618,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const statsContent = document.getElementById("statsContent");
             const rankingsContent = document.getElementById("rankingsContent");
             const incomeRankingsContent = document.getElementById("incomeRankingsContent");
+            const ageRankingsContent = document.getElementById("ageRankingsContent");
             
             // Update button states
             document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
@@ -1628,14 +1629,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 statsContent.style.display = "block";
                 rankingsContent.style.display = "none";
                 incomeRankingsContent.style.display = "none";
+                ageRankingsContent.style.display = "none";
             } else if (tab === "rankings") {
                 statsContent.style.display = "none";
                 rankingsContent.style.display = "block";
                 incomeRankingsContent.style.display = "none";
+                ageRankingsContent.style.display = "none";
             } else if (tab === "incomeRankings") {
                 statsContent.style.display = "none";
                 rankingsContent.style.display = "none";
                 incomeRankingsContent.style.display = "block";
+                ageRankingsContent.style.display = "none";
+            } else if (tab === "ageRankings") {
+                statsContent.style.display = "none";
+                rankingsContent.style.display = "none";
+                incomeRankingsContent.style.display = "none";
+                ageRankingsContent.style.display = "block";
             }
         });
     });
