@@ -98,6 +98,7 @@ function getFeatureStyle(feature, level) {
 
 let currentMaxPct = 0;
 let currentMaxIncome = 0;
+let currentMaxAgePercentage = 0;
 
 function getHeatColor(label, percentage) {
     const baseColor = getDynamicColor(label);
@@ -117,8 +118,8 @@ function getIncomeHeatColor(income) {
 
 function getAgeHeatColor(percentage) {
     if (!percentage) return "hsl(0, 0%, 90%)";
-    const ratio = percentage > 100 ? 1 : percentage / 100;
-    const lightness = 70 - (ratio * 50);
+    const ratio = currentMaxAgePercentage > 0 ? (percentage / currentMaxAgePercentage) : 0;
+    const lightness = 95 - (ratio * 65);
     return `hsl(300, 100%, ${lightness}%)`;
 }
 
@@ -1308,6 +1309,25 @@ function updateMapStyles() {
             if (match && match.percent_of_geo > max) max = match.percent_of_geo;
         });
         currentMaxPct = max;
+    } else if (ageMode && ageDataMap) {
+        let max = 0;
+        const totalPopData = dataMap;
+        Object.keys(ageDataMap).forEach(id => {
+            const ageCount = ageDataMap[id][selectedAgeGroup];
+            const totalPop = totalPopData[id] ? totalPopData[id].total_geo_pop : 1;
+            if (totalPop > 0) {
+                const pct = (ageCount / totalPop) * 100;
+                if (pct > max) max = pct;
+            }
+        });
+        currentMaxAgePercentage = max;
+    } else if (incomeMode && incomeDataMap) {
+        let max = 0;
+        Object.values(incomeDataMap).forEach(geo => {
+            const income = geo[selectedIncomeType];
+            if (income && income > max) max = income;
+        });
+        currentMaxIncome = max;
     }
     
     activeLayerGroup.eachLayer(geojson => {
