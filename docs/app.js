@@ -116,10 +116,10 @@ function getIncomeHeatColor(income) {
 }
 
 function getAgeHeatColor(percentage) {
-    if (!percentage || percentage === 0) return "hsl(0, 0%, 85%)";
+    if (!percentage) return "hsl(0, 0%, 90%)";
     const ratio = percentage > 100 ? 1 : percentage / 100;
-    const lightness = 85 - (ratio * 65);
-    return `hsl(300, 90%, ${lightness}%)`;
+    const lightness = 70 - (ratio * 50);
+    return `hsl(300, 100%, ${lightness}%)`;
 }
 
 function clearAllLayers() {
