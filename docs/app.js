@@ -1236,6 +1236,7 @@ function showAgeRankings() {
     // Build array of geographies with sorted age counts
     const rankings = Object.entries(ageDataMap).map(([id, ageData]) => {
         const geoData = dataMap[id];
+        if (!geoData) return null;  // Skip if no MCE data for this geoid
         const count = ageData[selectedAgeGroup] || 0;
         const totalPop = geoData.total_geo_pop || 1;
         const percentage = totalPop > 0 ? ((count / totalPop) * 100).toFixed(1) : 0;
@@ -1245,7 +1246,7 @@ function showAgeRankings() {
             count: count,
             percentage: percentage
         };
-    }).filter(r => r.count > 0).sort((a, b) => b.count - a.count);
+    }).filter(r => r && r.count > 0).sort((a, b) => b.count - a.count);
     
     ageRankingsContent.innerHTML = `
         <h3 style="margin-top:0; font-size:1.1em;">${ageLabel}</h3>
@@ -1313,9 +1314,11 @@ function updateMapStyles() {
         let max = 0;
         const totalPopData = dataMap;
         Object.keys(ageDataMap).forEach(id => {
+            const geoData = totalPopData[id];
+            if (!geoData) return;  // Skip if no MCE data for this geoid
             const ageCount = ageDataMap[id][selectedAgeGroup];
-            const totalPop = totalPopData[id] ? totalPopData[id].total_geo_pop : 1;
-            if (totalPop > 0) {
+            const totalPop = geoData.total_geo_pop || 1;
+            if (totalPop > 0 && ageCount) {
                 const pct = (ageCount / totalPop) * 100;
                 if (pct > max) max = pct;
             }
@@ -1542,15 +1545,6 @@ document.getElementById("ageToggle").addEventListener("change", async (e) => {
         if (level >= 3) {
             const coFips = viewStack[2];
             await getCachedAgeData(coFips, 'tracts');
-            tractLayer.eachLayer(geojson => {
-                if (geojson.eachLayer) {
-                    geojson.eachLayer(layer => {
-                        if (layer.setStyle) {
-                            layer.setStyle(getFeatureStyle(layer.feature, 3));
-                        }
-                    });
-                }
-            });
         }
         
         // Show age rankings if at appropriate level
