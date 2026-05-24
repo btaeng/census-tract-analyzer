@@ -117,9 +117,9 @@ function getIncomeHeatColor(income) {
 }
 
 function getAgeHeatColor(percentage) {
-    if (!percentage) return "hsl(0, 0%, 90%)";
+    if (!percentage) return "hsl(0, 0%, 94%)";
     const ratio = currentMaxAgePercentage > 0 ? (percentage / currentMaxAgePercentage) : 0;
-    const lightness = 95 - (ratio * 65);
+    const lightness = 80 - (ratio * 55);
     return `hsl(300, 100%, ${lightness}%)`;
 }
 
@@ -1542,6 +1542,15 @@ document.getElementById("ageToggle").addEventListener("change", async (e) => {
         if (level >= 3) {
             const coFips = viewStack[2];
             await getCachedAgeData(coFips, 'tracts');
+            tractLayer.eachLayer(geojson => {
+                if (geojson.eachLayer) {
+                    geojson.eachLayer(layer => {
+                        if (layer.setStyle) {
+                            layer.setStyle(getFeatureStyle(layer.feature, 3));
+                        }
+                    });
+                }
+            });
         }
         
         // Show age rankings if at appropriate level
