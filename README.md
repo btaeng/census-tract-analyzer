@@ -16,7 +16,7 @@ Originally built as a live-query Flask application, the project was re-engineere
 ## Key Features
 
 - **Multi-Level Drill-Down:** Explore data at the state, county, and census tract levels through interactive map clicks.
-- **Most Common Ethnicity (MCE) Mapping:** Every geography is color-coded based on its dominant ethnic group, with custom cultural ensigns/flags pinned to each region.
+- **Most Common Ethnicity (MCE) Mapping:** Every geography is color-coded based on its dominant ethnic group.
 - **Dynamic Heatmap Engine:** Single out any of the 100+ tracked ethnicities to see their concentration across the map. Features local normalization, ensuring that even small populations (e.g., 2% concentration) are visualized with deep color intensity relative to the current view.
 - **Intelligent Search:** Synchronized search bars for states, counties, and tracts that update dynamically as you navigate.
 - **Detailed Analytics Sidebar:** Instant access to full ethnic breakdowns, including raw population counts and "% Alone" (intra-group identification) statistics.
