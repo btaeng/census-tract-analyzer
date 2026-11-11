@@ -1,18 +1,6 @@
 html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 #map { width: 100vw; height: 100vh; background: #222; }
 
-.ensign-container {
-    background: transparent;
-    border: none;
-}
-.ensign-flag {
-    width: 10px;
-    height: auto;
-    border: 1px solid #fff;
-    box-shadow: 0 0 5px rgba(0,0,0,0.5);
-    pointer-events: none;
-}
-
 #backButton {
   position: absolute;
   top: 20px;

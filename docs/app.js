@@ -1,10 +1,14 @@
+// First and foremost, we initialize the map to look at the continental US
 const map = L.map("map").setView([37.8, -96], 4);
 
+// OpenStreetMap tiles
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
+// Initialize view stack and data cache
 const viewStack = ['national']; 
+// The data cache is for storing data fetched from the server (located in the api folder) to avoid repeated fetches
 const dataCache = {
   states: null,
   counties: {},
@@ -18,12 +22,10 @@ const dataCache = {
 };
 
 const stateLayer = L.layerGroup().addTo(map);
-const stateFlagLayer = L.layerGroup().addTo(map);
 const countyLayer = L.layerGroup().addTo(map);
-const countyFlagLayer = L.layerGroup().addTo(map);
 const tractLayer = L.layerGroup().addTo(map);
-const tractFlagLayer = L.layerGroup().addTo(map);
 
+// The color cache is used to store colors for each ethnicity label
 const colorCache = {};
 
 let viewMode = 'mce';
@@ -33,10 +35,11 @@ let selectedIncomeType = 'median_household_income';
 let ageMode = false;
 let selectedAgeGroup = 'under_5';
 
+// This function determines style based on properties, view mode, and view level (state, county, tract)
 function getFeatureStyle(feature, level) {
     const props = feature.properties;
-    let id;
-    let data;
+    let id; 
+    let data; 
     let incomeData;
     let ageData;
 
@@ -105,7 +108,6 @@ function getHeatColor(label, percentage) {
     const hue = baseColor.match(/\d+/)[0];
     const ratio = currentMaxPct > 0 ? (percentage / currentMaxPct) : 0;
     const lightness = 95 - (ratio * 65); 
-    
     return `hsl(${hue}, 85%, ${lightness}%)`;
 }
 
@@ -124,7 +126,7 @@ function getAgeHeatColor(percentage) {
 }
 
 function clearAllLayers() {
-  [stateLayer, stateFlagLayer, countyLayer, countyFlagLayer, tractLayer, tractFlagLayer].forEach(l => l.clearLayers());
+  [stateLayer, countyLayer, tractLayer].forEach(l => l.clearLayers());
 }
 
 function fillDatalist(listId, dataMap) {
@@ -219,16 +221,8 @@ function handleVisibility() {
   const zoom = map.getZoom();
   const level = viewStack.length;
 
-  const FLAG_THRESHOLD = 5;
   const SHAPE_THRESHOLD = 2;
 
-  if (viewMode === 'heatmap' || incomeMode || ageMode || zoom < FLAG_THRESHOLD) {
-    [stateFlagLayer, countyFlagLayer, tractFlagLayer].forEach(l => map.removeLayer(l));
-  } else {
-    if (level === 1) { map.addLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); map.removeLayer(tractFlagLayer); }
-    if (level === 2) { map.addLayer(countyFlagLayer); map.removeLayer(stateFlagLayer); map.removeLayer(tractFlagLayer); }
-    if (level === 3) { map.addLayer(tractFlagLayer); map.removeLayer(stateFlagLayer); map.removeLayer(countyFlagLayer); }
-  }
   if (zoom < SHAPE_THRESHOLD) {
     [stateLayer, countyLayer, tractLayer].forEach(l => map.removeLayer(l));
   } else {
@@ -253,258 +247,6 @@ function getDynamicColor(label) {
   const color = `hsl(${hue}, 75%, 45%)`;
   colorCache[label] = color;
   return color;
-}
-
-const flagMap = {
-  "Albanian": "al",
-  "Alsatian": "static/img/ensigns/alsace.png",
-  "Andorran": "ad",
-  "Armenian": "am",
-  "Austrian": "at",
-  "Azerbaijani": "az",
-  "Basque": "static/img/ensigns/basque.png",
-  "Belarusian": "by",
-  "Belgian": "be",
-  "Bosnian and Herzegovinian": "ba",
-  "British": "gb",
-  "Bulgarian": "bg",
-  "Carpatho Rusyn": "static/img/ensigns/rusyn.png",
-  "Celtic": "static/img/ensigns/celtic.png",
-  "Cornish": "static/img/ensigns/cornwall.png",
-  "Croatian": "hr",
-  "Cypriot": "cy",
-  "Czech": "cz",
-  "Danish": "dk",
-  "Dutch": "nl",
-  "English": "gb-eng",
-  "Estonian": "ee",
-  "Faroe Islander": "fo",
-  "Finnish": "fi",
-  "French": "fr",
-  "Frisian": "static/img/ensigns/frisian.png",
-  "Georgian": "ge",
-  "German": "de",
-  "Greek": "gr",
-  "Hungarian": "hu",
-  "Icelandic": "is",
-  "Irish": "ie",
-  "Italian": "it",
-  "Kosovan": "xk",
-  "Lapp": "static/img/ensigns/lapp.png",
-  "Latvian": "lv",
-  "Liechtensteiner": "li",
-  "Lithuanian": "lt",
-  "Luxembourger": "lu",
-  "Macedonian": "mk",
-  "Maltese": "mt",
-  "Manx": "static/img/ensigns/manx.png",
-  "Moldovan": "md",
-  "Monegasque": "mc",
-  "Montenegrin": "me",
-  "Northern Irish": "gb-nir",
-  "Norwegian": "no",
-  "Polish": "pl",
-  "Portuguese": "pt",
-  "Roma": "static/img/ensigns/roma.png",
-  "Romanian": "ro",
-  "Russian": "ru",
-  "Scottish": "gb-sct",
-  "Serbian": "rs",
-  "Slovak": "sk",
-  "Slovenian": "si",
-  "Swedish": "se",
-  "Swiss": "ch",
-  "Tatar": "static/img/ensigns/tatar.png",
-  "Turkish": "tr",
-  "Ukrainian": "ua",
-  "Welsh": "gb-wls",
-  "Algerian": "dz",
-  "Arab": "static/img/ensigns/arab.png",
-  "Assyrian": "static/img/ensigns/assyria.png",
-  "Bahraini": "bh",
-  "Berber": "static/img/ensigns/berber.png",
-  "Chaldean": "static/img/ensigns/chaldea.png",
-  "Egyptian": "eg",
-  "Emirati": "ae",
-  "Iranian": "ir",
-  "Iraqi": "iq",
-  "Israeli": "il",
-  "Jordanian": "jo",
-  "Kurdish": "static/img/ensigns/kurdistan.png",
-  "Kuwaiti": "kw",
-  "Lebanese": "lb",
-  "Libyan": "ly",
-  "Moroccan": "ma",
-  "Omani": "om",
-  "Palestinian": "ps",
-  "Qatari": "qa",
-  "Saudi": "sa",
-  "Syriac": "static/img/ensigns/syriac.png",
-  "Syrian": "sy",
-  "Tunisian": "tn",
-  "Yazidi": "static/img/ensigns/yazidi.png",
-  "Yemeni": "ye",
-  "Afrikaner": "static/img/ensigns/afrikaner.png",
-  "Australian": "au",
-  "Cajun": "static/img/ensigns/cajun.png",
-  "Canadian": "ca",
-  "French Canadian": "static/img/ensigns/quebec.png",
-  "Greenlandic": "gl",
-  "New Zealander": "nz",
-  "Other White, not specified": "us",
-  "Angolan": "ao",
-  "Beninese": "bj",
-  "Bissau-Guinean": "gw",
-  "Burkinabe": "bf",
-  "Burundian": "bi",
-  "Cameroonian": "cm",
-  "Central African": "cf",
-  "Chadian": "td",
-  "Congolese": "cd",
-  "Djiboutian": "dj",
-  "Equatorial Guinean": "gq",
-  "Eritrean": "er",
-  "Ethiopian": "et",
-  "Gabonese": "ga",
-  "Gambian": "gm",
-  "Ghanaian": "gh",
-  "Guinean": "gn",
-  "Ivoirian": "ci",
-  "Kenyan": "ke",
-  "Liberian": "lr",
-  "Malagasy": "mg",
-  "Malawian": "mw",
-  "Malian": "ml",
-  "Motswana": "bw",
-  "Mozambican": "mz",
-  "Namibian": "na",
-  "Nigerian (Nigeria)": "ng",
-  "Nigerien (Niger)": "ne",
-  "Rwandan": "rw",
-  "Senegalese": "sn",
-  "Sierra Leonean": "sl",
-  "Somali": "so",
-  "South African": "za",
-  "South Sudanese": "ss",
-  "Sudanese": "sd",
-  "Swazi": "sz",
-  "Tanzanian": "tz",
-  "Togolese": "tg",
-  "Ugandan": "ug",
-  "Zambian": "zm",
-  "Zimbabwean": "zw",
-  "Anguillan": "ai",
-  "Antiguan and Barbudan": "ag",
-  "Bahamian": "bs",
-  "Barbadian": "bb",
-  "British Virgin Islander": "vg",
-  "Dominica Islander": "dm",
-  "Grenadian": "gd",
-  "Haitian": "ht",
-  "Jamaican": "jm",
-  "Kittitian and Nevisian": "kn",
-  "Montserratian": "ms",
-  "St. Lucian": "lc",
-  "Trinidadian and Tobagonian": "tt",
-  "U.S. Virgin Islander": "vi",
-  "Vincentian": "vc",
-  "Other Black or African American, not specified": "static/img/ensigns/pan_african.png",
-  "Mexican": "mx",
-  "Costa Rican": "cr",
-  "Guatemalan": "gt",
-  "Honduran": "hn",
-  "Nicaraguan": "ni",
-  "Panamanian": "pa",
-  "Salvadoran": "sv",
-  "Cuban": "cu",
-  "Dominican": "do",
-  "Puerto Rican": "pr",
-  "Argentinean": "ar",
-  "Bolivian": "bo",
-  "Chilean": "cl",
-  "Colombian": "co",
-  "Ecuadorian": "ec",
-  "Paraguayan": "py",
-  "Peruvian": "pe",
-  "Uruguayan": "uy",
-  "Venezuelan": "ve",
-  "Spaniard": "es",
-  "Chinese, except Taiwanese": "cn",
-  "Hmong": "static/img/ensigns/hmong.png",
-  "Japanese": "jp",
-  "Korean": "kr",
-  "Mongolian": "mn",
-  "Okinawan": "static/img/ensigns/okinawa.png",
-  "Taiwanese": "tw",
-  "Bruneian": "bn",
-  "Burmese": "mm",
-  "Cambodian": "kh",
-  "Filipino": "ph",
-  "Indonesian": "id",
-  "Laotian": "la",
-  "Malaysian": "my",
-  "Singaporean": "sg",
-  "Thai": "th",
-  "Timorese": "tl",
-  "Vietnamese": "vn",
-  "Asian Indian": "in",
-  "Bangladeshi": "bd",
-  "Bhutanese": "bt",
-  "Maldivian": "mv",
-  "Nepalese": "np",
-  "Pakistani": "pk",
-  "Sikh": "static/img/ensigns/sikh.png",
-  "Sri Lankan": "lk",
-  "Afghan": "af",
-  "Kazakh": "kz",
-  "Kyrgyz": "kg",
-  "Tajik": "tj",
-  "Turkmen": "tm",
-  "Uzbek": "uz",
-  "Aruban": "aw",
-  "Belizean": "bz",
-  "Bermudan": "bm",
-  "Brazilian": "br",
-  "Cabo Verdean": "cv",
-  "Cayman Islander": "ky",
-  "Comorian": "km",
-  "Guyanese": "gy",
-  "Mauritanian": "mr",
-  "Surinamese": "sr",
-  "Native Hawaiian": "us-hi",
-  "Fijian": "fj",
-  "New Caledonian": "nc",
-  "Ni-Vanuatu": "vu",
-  "Papua New Guinean": "pg",
-  "Solomon Islander": "sb",
-  "Guamanian or Chamorro": "gu",
-  "I-Kiribati": "ki",
-  "Northern Mariana Islander": "mp",
-  "Marshallese": "mh",
-  "Micronesian": "fm",
-  "Nauruan": "nr",
-  "Palauan": "pw",
-  "Pohnpeian": "pn",
-  "Cook Islander": "ck",
-  "French Polynesian": "pf",
-  "Maori": "static/img/ensigns/maori.png",
-  "Niuean": "nu",
-  "Samoan": "ws",
-  "Tahitian": "pf",
-  "Tokelauan": "tk",
-  "Tongan": "to",
-  "Tuvaluan": "tv",
-  "Wallisian and Futunan": "wf",
-  "American Indian": "static/img/ensigns/indigenous.png",
-  "American Indian and Alaska Native, not specified": "static/img/ensigns/indigenous.png",
-  "American Indian, not specified": "static/img/ensigns/indigenous.png",
-  "Alaska Native": "us-ak"
-}
-
-function getFlagUrl(label) {
-  const mapping = flagMap[label] || "us";
-  if (mapping.includes("/")) return mapping;
-  return `https://flagcdn.com/w80/${mapping}.png`;
 }
 
 function updateBackButton() {
@@ -561,7 +303,7 @@ async function goBack() {
   viewStack.pop();
   const target = viewStack[viewStack.length - 1];
 
-  [stateLayer, stateFlagLayer, countyLayer, countyFlagLayer, tractLayer, tractFlagLayer].forEach(l => l.clearLayers());
+  [stateLayer, countyLayer, tractLayer].forEach(l => l.clearLayers());
 
   if (target === 'national') {
     initStateMap();
@@ -698,15 +440,6 @@ async function initStateMap() {
         });
         if (!stateData) return;
 
-        const center = turf.centroid(feature);
-        const [lng, lat] = center.geometry.coordinates;
-
-        const flagIcon = L.divIcon({
-          html: `<img src="${getFlagUrl(stateData.mce)}" class="ensign-flag" title="${feature.properties.NAME}: ${stateData.mce}">`,
-          className: 'ensign-container'
-        });
-
-        L.marker([lat, lng], { icon: flagIcon, interactive: false }).addTo(stateFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           viewStack.push(stateFips);
@@ -737,7 +470,6 @@ async function initStateMap() {
 async function loadCountyLevel(stateFips) {
   try {
     stateLayer.clearLayers();
-    stateFlagLayer.clearLayers();
 
     const geoResp = await fetch(`static/data/counties/${stateFips}.geojson`);
     if (!geoResp.ok) throw new Error("GeoJSON file not found on server");
@@ -763,13 +495,6 @@ async function loadCountyLevel(stateFips) {
         });
         if (!countyData) return;
 
-        const center = turf.centroid(feature);
-        const [lng, lat] = center.geometry.coordinates;
-        const icon = L.divIcon({
-          html: `<img src="${getFlagUrl(countyData.mce)}" class="ensign-flag" style="width:16px;">`,
-          className: 'ensign-container'
-        });
-        L.marker([lat, lng], { icon: icon, interactive: false }).addTo(countyFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           viewStack.push(fullCoID);
@@ -801,7 +526,6 @@ async function loadCountyLevel(stateFips) {
 async function loadTractLevel(coFips) {
   try {
     countyLayer.clearLayers();
-    countyFlagLayer.clearLayers();
     
     const geoid = coFips;
     const geoResp = await fetch(`static/data/tracts/${geoid}.geojson`);
@@ -827,12 +551,6 @@ async function loadTractLevel(coFips) {
         });
         if (!tractData) return;
 
-        const center = turf.centroid(f);
-        const [lng, lat] = center.geometry.coordinates;
-        L.marker([lat, lng], { 
-            icon: L.divIcon({ html: `<img src="${getFlagUrl(tractData.mce)}" class="ensign-flag" style="width:10px;">`, className: 'ensign-container' }),
-            interactive: false 
-        }).addTo(tractFlagLayer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           if (viewStack.length === 4) {
