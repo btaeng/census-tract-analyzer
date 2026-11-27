@@ -24,6 +24,9 @@ const dataCache = {
 const stateLayer = L.layerGroup().addTo(map);
 const countyLayer = L.layerGroup().addTo(map);
 const tractLayer = L.layerGroup().addTo(map);
+const selectedTracts = new Set();
+const tractLayersById = new Map();
+let currentTractGeoJson = null;
 
 // The color cache is used to store colors for each ethnicity label
 const colorCache = {};
@@ -156,6 +159,120 @@ function findAndZoom(layerGroup, propertyName, targetValue) {
   });
 }
 
+function getTractSelectionStyle() {
+  return {
+    color: "#e65c00",
+    fillColor: "#ffbf00",
+    fillOpacity: 0.8,
+    weight: 2
+  };
+}
+
+function updateCombineControls() {
+  const toggle = document.getElementById("combineTractsToggle");
+  const status = document.getElementById("combineSelectionStatus");
+  const clearButton = document.getElementById("clearTractSelection");
+  const available = viewStack.length === 3 || viewStack.length === 4;
+
+  toggle.disabled = !available;
+  clearButton.hidden = selectedTracts.size === 0;
+  if (!available) {
+    toggle.checked = false;
+    status.textContent = "Select a county to combine tracts.";
+  } else if (selectedTracts.size > 0) {
+    status.textContent = `${selectedTracts.size} tract${selectedTracts.size === 1 ? "" : "s"} selected. Click to add or remove.`;
+  } else {
+    status.textContent = toggle.checked
+      ? "Click tracts on the map to combine them."
+      : "Turn on to select multiple tracts.";
+  }
+}
+
+function clearTractSelection(restoreDetails = true) {
+  selectedTracts.forEach(tractId => {
+    const layer = tractLayersById.get(tractId);
+    if (layer && currentTractGeoJson) currentTractGeoJson.resetStyle(layer);
+  });
+  selectedTracts.clear();
+  updateCombineControls();
+  if (restoreDetails) restoreCurrentDetails();
+}
+
+function toggleTractSelection(tractId) {
+  const layer = tractLayersById.get(tractId);
+  if (selectedTracts.has(tractId)) {
+    selectedTracts.delete(tractId);
+    if (layer && currentTractGeoJson) currentTractGeoJson.resetStyle(layer);
+  } else {
+    selectedTracts.add(tractId);
+    if (layer) layer.setStyle(getTractSelectionStyle());
+  }
+
+  updateCombineControls();
+  if (selectedTracts.size > 0) showCombinedTractDetails();
+  else restoreCurrentDetails();
+}
+
+function buildCombinedTractData() {
+  const parentKey = viewStack[2];
+  const tractDataMap = dataCache.tracts[parentKey] || {};
+  const ageDataMap = dataCache.tractsAge[parentKey] || {};
+  const labels = new Map();
+  const ageData = {};
+  let totalPopulation = 0;
+
+  selectedTracts.forEach(tractId => {
+    const tractData = tractDataMap[tractId];
+    if (!tractData) return;
+
+    totalPopulation += Number(tractData.total_geo_pop) || 0;
+    tractData.details.forEach(detail => {
+      const group = labels.get(detail.label) || { pop: 0, alonePopulation: 0 };
+      const population = Number(detail.pop) || 0;
+      group.pop += population;
+      group.alonePopulation += population * (Number(detail.percent_alone) || 0) / 100;
+      labels.set(detail.label, group);
+    });
+
+    const tractAge = ageDataMap[tractId];
+    if (tractAge) {
+      Object.entries(tractAge).forEach(([key, value]) => {
+        if (key !== "name") ageData[key] = (ageData[key] || 0) + (Number(value) || 0);
+      });
+    }
+  });
+
+  const details = Array.from(labels, ([label, group]) => ({
+    label,
+    pop: group.pop,
+    percent_alone: group.pop ? Math.round(group.alonePopulation / group.pop * 1000) / 10 : 0,
+    percent_of_geo: totalPopulation ? Math.round(group.pop / totalPopulation * 1000) / 10 : 0
+  })).sort((a, b) => b.pop - a.pop);
+
+  return {
+    data: {
+      name: `Combined ${selectedTracts.size} tract${selectedTracts.size === 1 ? "" : "s"}`,
+      mce: details.length ? details[0].label : "No data",
+      total_geo_pop: totalPopulation,
+      details
+    },
+    ageData: Object.keys(ageData).length ? ageData : null,
+    incomeData: selectedTracts.size === 1
+      ? (dataCache.tractsIncome[parentKey] || {})[Array.from(selectedTracts)[0]] || null
+      : null
+  };
+}
+
+function showCombinedTractDetails() {
+  const combined = buildCombinedTractData();
+  showDetails(null, "tract", combined);
+}
+
+function restoreCurrentDetails() {
+  if (viewStack.length === 4) showDetails(viewStack[3], "tract");
+  else if (viewStack.length === 3) showDetails(viewStack[2], "county");
+}
+
 document.getElementById("stateSearch").addEventListener("input", async (e) => {
   const val = e.target.value;
   const list = document.getElementById("stateList");
@@ -204,6 +321,12 @@ document.getElementById("tractSearch").addEventListener("input", (e) => {
   if (opt) {
     const tFips = opt.dataset.id;
     const tShortFips = tFips.slice(-6);
+
+    if (document.getElementById("combineTractsToggle").checked) {
+      findAndZoom(tractLayer, "TRACTCE", tShortFips);
+      toggleTractSelection(tFips);
+      return;
+    }
 
     // Update stack
     if (viewStack.length === 4) viewStack[3] = tFips;
@@ -297,6 +420,8 @@ function syncSearchUI() {
     cIn.disabled = false;
     tIn.disabled = false;
   }
+
+  updateCombineControls();
 }
 
 async function goBack() {
@@ -443,6 +568,7 @@ async function initStateMap() {
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           viewStack.push(stateFips);
+          syncSearchUI();
           updateBackButton();
           map.fitBounds(e.target.getBounds());
           loadCountyLevel(stateFips);
@@ -469,6 +595,7 @@ async function initStateMap() {
 
 async function loadCountyLevel(stateFips) {
   try {
+    clearTractSelection(false);
     stateLayer.clearLayers();
 
     const geoResp = await fetch(`static/data/counties/${stateFips}.geojson`);
@@ -498,6 +625,7 @@ async function loadCountyLevel(stateFips) {
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           viewStack.push(fullCoID);
+          syncSearchUI();
           updateBackButton();
           map.fitBounds(e.target.getBounds());
           loadTractLevel(fullCoID);
@@ -525,6 +653,10 @@ async function loadCountyLevel(stateFips) {
 
 async function loadTractLevel(coFips) {
   try {
+    clearTractSelection(false);
+    tractLayersById.clear();
+    currentTractGeoJson = null;
+    tractLayer.clearLayers();
     countyLayer.clearLayers();
     
     const geoid = coFips;
@@ -551,8 +683,13 @@ async function loadTractLevel(coFips) {
         });
         if (!tractData) return;
 
+        tractLayersById.set(fullTractID, layer);
         layer.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
+          if (document.getElementById("combineTractsToggle").checked) {
+            toggleTractSelection(fullTractID);
+            return;
+          }
           if (viewStack.length === 4) {
             viewStack[3] = fullTractID;
           } else {
@@ -571,10 +708,12 @@ async function loadTractLevel(coFips) {
           this.bringToFront();
         });
         layer.on('mouseout', function (e) {
-          geojson.resetStyle(this);
+          if (selectedTracts.has(fullTractID)) this.setStyle(getTractSelectionStyle());
+          else geojson.resetStyle(this);
         });
       }
     }).addTo(tractLayer);
+    currentTractGeoJson = geojson;
     map.fitBounds(geojson.getBounds());
     handleVisibility();
   } catch (err) {
@@ -582,14 +721,18 @@ async function loadTractLevel(coFips) {
   }
 }
 
-function showDetails(geoId, type) {
+function showDetails(geoId, type, combinedData = null) {
     const panel = document.getElementById("infoPanel");
     const content = document.getElementById("statsContent");
     
     let data;
     let incomeData;
     let ageData;
-    if (type === 'state') {
+    if (combinedData) {
+      data = combinedData.data;
+      incomeData = combinedData.incomeData;
+      ageData = combinedData.ageData;
+    } else if (type === 'state') {
       data = dataCache.states[geoId];
       incomeData = dataCache.statesIncome ? dataCache.statesIncome[geoId] : null;
       ageData = dataCache.statesAge ? dataCache.statesAge[geoId] : null;
@@ -627,7 +770,9 @@ function showDetails(geoId, type) {
     const incomeRankingsTab = document.getElementById("incomeRankingsTab");
     const ageRankingsTab = document.getElementById("ageRankingsTab");
     
-    if (level === 2 || level === 3) {
+    if (combinedData) {
+        document.getElementById("tabContainer").style.display = "none";
+    } else if (level === 2 || level === 3) {
         if (ageMode) {
             document.getElementById("tabContainer").style.display = "flex";
             ethRankingsTab.style.display = "none";
@@ -709,6 +854,12 @@ function showDetails(geoId, type) {
                     <tr><td><strong>Per Capita Income:</strong></td><td>${pci}</td></tr>
                 </table>
             </div>
+        `;
+    } else if (combinedData && selectedTracts.size > 1) {
+        incomeHtml = `
+            <p style="margin-bottom: 15px; color: #666;">
+                Median income is not combined because tract medians cannot be added or averaged accurately.
+            </p>
         `;
     }
     
@@ -1063,6 +1214,9 @@ function updateMapStyles() {
                 if (!data) return;
 
                 layer.setStyle(getFeatureStyle(layer.feature, level));
+                if (level === 3 && selectedTracts.has(id)) {
+                    layer.setStyle(getTractSelectionStyle());
+                }
 
                 let tooltipContent = props.NAME || `Tract ${props.TRACTCE}`;
                 if (ageMode && ageDataMap && ageDataMap[id]) {
@@ -1316,6 +1470,15 @@ function updateMaxIncomeValue() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    updateCombineControls();
+    document.getElementById("combineTractsToggle").addEventListener("change", (e) => {
+        if (!e.target.checked) clearTractSelection();
+        else updateCombineControls();
+    });
+    document.getElementById("clearTractSelection").addEventListener("click", () => {
+        clearTractSelection();
+    });
+
     document.getElementById("togglePanel").addEventListener("click", (e) => {
         e.stopPropagation();
         const panel = document.getElementById("infoPanel");

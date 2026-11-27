@@ -16,6 +16,7 @@ Originally built as a live-query Flask application, the project was re-engineere
 ## Key Features
 
 - **Multi-Level Drill-Down:** Explore data at the state, county, and census tract levels through interactive map clicks.
+- **Combined Tract Analysis:** Select multiple tracts on the map to view their combined population, ethnicity, and age data.
 - **Most Common Ethnicity (MCE) Mapping:** Every geography is color-coded based on its dominant ethnic group.
 - **Dynamic Heatmap Engine:** Single out any of the 100+ tracked ethnicities to see their concentration across the map. Features local normalization, ensuring that even small populations (e.g., 2% concentration) are visualized with deep color intensity relative to the current view.
 - **Intelligent Search:** Synchronized search bars for states, counties, and tracts that update dynamically as you navigate.

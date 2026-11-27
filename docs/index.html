@@ -23,6 +23,12 @@
         <label>Tract</label>
         <input list="tractList" id="tractSearch" placeholder="Select a county first..." disabled>
         <datalist id="tractList"></datalist>
+        <label class="combine-tracts-label">
+          <input type="checkbox" id="combineTractsToggle" disabled>
+          Combine tracts
+        </label>
+        <span id="combineSelectionStatus" aria-live="polite">Select a county to combine tracts.</span>
+        <button id="clearTractSelection" type="button" hidden>Clear selection</button>
       </div>
       <div class="search-group">
         <label>Heatmap Ethnicity</label>
