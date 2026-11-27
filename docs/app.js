@@ -37,6 +37,7 @@ let incomeMode = false;
 let selectedIncomeType = 'median_household_income';
 let ageMode = false;
 let selectedAgeGroup = 'under_5';
+let colorOverlayEnabled = true;
 
 // This function determines style based on properties, view mode, and view level (state, county, tract)
 function getFeatureStyle(feature, level) {
@@ -65,11 +66,12 @@ function getFeatureStyle(feature, level) {
 
     if (!data) return { fillOpacity: 0, weight: 0 };
 
+    let style;
     if (ageMode && ageData) {
         const ageCount = ageData[selectedAgeGroup];
         const totalPop = data.total_geo_pop || 1;
         const percentage = totalPop > 0 ? (ageCount / totalPop) * 100 : 0;
-        return {
+        style = {
             fillColor: getAgeHeatColor(percentage),
             fillOpacity: 0.85,
             color: "white",
@@ -77,7 +79,7 @@ function getFeatureStyle(feature, level) {
         };
     } else if (incomeMode && incomeData) {
         const income = incomeData[selectedIncomeType];
-        return {
+        style = {
             fillColor: getIncomeHeatColor(income),
             fillOpacity: 0.85,
             color: "white",
@@ -86,20 +88,23 @@ function getFeatureStyle(feature, level) {
     } else if (viewMode === 'heatmap' && targetEthnicity) {
         const match = data.details.find(e => e.label === targetEthnicity);
         const pct = match ? match.percent_of_geo : 0;
-        return {
+        style = {
             fillColor: getHeatColor(targetEthnicity, pct),
             fillOpacity: 0.85,
             color: "white",
             weight: 0.5
         };
     } else {
-        return {
+        style = {
             fillColor: getDynamicColor(data.mce),
             fillOpacity: 0.6,
             color: "white",
             weight: level === 3 ? 0.3 : 1
         };
     }
+
+    if (!colorOverlayEnabled) style.fillOpacity = 0;
+    return style;
 }
 
 let currentMaxPct = 0;
@@ -163,7 +168,7 @@ function getTractSelectionStyle() {
   return {
     color: "#e65c00",
     fillColor: "#ffbf00",
-    fillOpacity: 0.8,
+    fillOpacity: colorOverlayEnabled ? 0.8 : 0,
     weight: 2
   };
 }
@@ -578,7 +583,7 @@ async function initStateMap() {
           this.setStyle({
             weight: 3,
             color: '#00ffff',
-            fillOpacity: 0.8
+            fillOpacity: colorOverlayEnabled ? 0.8 : 0
           });
           this.bringToFront();
         });
@@ -635,7 +640,7 @@ async function loadCountyLevel(stateFips) {
           this.setStyle({
             weight: 3,
             color: '#00ffff',
-            fillOpacity: 0.8
+            fillOpacity: colorOverlayEnabled ? 0.8 : 0
           });
           this.bringToFront();
         });
@@ -703,7 +708,7 @@ async function loadTractLevel(coFips) {
           this.setStyle({
             weight: 3,
             color: '#00ffff',
-            fillOpacity: 0.8
+            fillOpacity: colorOverlayEnabled ? 0.8 : 0
           });
           this.bringToFront();
         });
@@ -1147,7 +1152,7 @@ function showAgeRankings() {
 }
 
 function updateMapStyles() {
-    const level = viewStack.length;
+    const level = Math.min(viewStack.length, 3);
     let activeLayerGroup;
     let dataMap;
     let incomeDataMap;
@@ -1470,6 +1475,11 @@ function updateMaxIncomeValue() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("colorOverlayToggle").addEventListener("change", (e) => {
+        colorOverlayEnabled = e.target.checked;
+        updateMapStyles();
+    });
+
     updateCombineControls();
     document.getElementById("combineTractsToggle").addEventListener("change", (e) => {
         if (!e.target.checked) clearTractSelection();
